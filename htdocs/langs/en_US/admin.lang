@@ -219,7 +219,7 @@ Nouveauté=Novelty
 AchatTelechargement=Buy / Download
 GoModuleSetupArea=To deploy/install a new module, go to the Module setup area: <a href="%s">%s</a>.
 DoliStoreDesc=DoliStore, the official market place for Dolibarr ERP/CRM external modules
-DoliPartnersDesc=List of companies providing custom-developed modules or features.<br>Note: since Dolibarr is an open source application, <i>anyone</i> experienced in PHP programming may develop a module.
+DoliPartnersDesc=List of companies providing custom-developed modules or features.<br>Note: since Dolibarr is an open source application, <i>anyone</i> experienced in PHP programming should be able to develop a module.
 WebSiteDesc=External websites for more add-on (non-core) modules...
 DevelopYourModuleDesc=Some solutions to develop your own module...
 URL=URL
@@ -1240,6 +1240,7 @@ WarningAtLeastKeyOrTranslationRequired=A search criteria is required at least fo
 NewTranslationStringToShow=New translation string to show
 OriginalValueWas=The original translation is overwritten. Original value was:<br><br>%s
 TransKeyWithoutOriginalValue=You forced a new translation for the translation key '<strong>%s</strong>' that does not exist in any language files
+TitleNumberOfActivatedModules=Activated application|modules
 TotalNumberOfActivatedModules=Activated application/modules: <b>%s</b> / <b>%s</b>
 YouMustEnableOneModule=You must at least enable 1 module
 ClassNotFoundIntoPathWarning=Class %s not found in PHP path
