@@ -204,7 +204,7 @@ class Translate
 			dol_print_error('', get_class($this)."::Load ErrorWrongParameters");
 			return -1;
 		}
-		if ($this->defaultlang == 'none_NONE') {
+		if ($this->defaultlang === 'none_NONE') {
 			return 0; // Special language code to not translate keys
 		}
 
@@ -480,7 +480,7 @@ class Translate
 
 		if (!$found && !empty($conf->global->MAIN_ENABLE_OVERWRITE_TRANSLATION)) {
 			// Overwrite translation with database read
-			$sql = "SELECT transkey, transvalue FROM ".MAIN_DB_PREFIX."overwrite_trans where lang='".$db->escape($this->defaultlang)."' OR lang IS NULL";
+			$sql = "SELECT transkey, transvalue FROM ".$db->prefix()."overwrite_trans where lang='".$db->escape($this->defaultlang)."' OR lang IS NULL";
 			$sql .= " AND entity IN (0, ".getEntity('overwrite_trans').")";
 			$sql .= $db->order("lang", "DESC");
 			$resql = $db->query($sql);
@@ -555,9 +555,9 @@ class Translate
 	 * Return translated value of key for special keys ("Currency...", "Civility...", ...).
 	 * Search in lang file, then into database. Key must be any complete entry into lang file: CurrencyEUR, ...
 	 * If not found, return key.
-	 * The string return is not formated (translated with transnoentitiesnoconv)
-	 * NOTE: To avoid infinite loop (getLabelFromKey->transnoentities->getTradFromKey), if you modify this function,
-	 * check that getLabelFromKey is not called with same value than input.
+	 * The string return is not formated (translated with transnoentitiesnoconv).
+	 * NOTE: To avoid infinite loop (getLabelFromKey->transnoentities->getTradFromKey->getLabelFromKey), if you modify this function,
+	 * check that getLabelFromKey is never called with the same value than $key.
 	 *
 	 * @param	string		$key		Key to translate
 	 * @return 	string					Translated string (translated with transnoentitiesnoconv)
@@ -572,23 +572,24 @@ class Translate
 		}
 
 		$newstr = $key;
+		$reg = array();
 		if (preg_match('/^Civility([0-9A-Z]+)$/i', $key, $reg)) {
 			$newstr = $this->getLabelFromKey($db, $reg[1], 'c_civility', 'code', 'label');
 		} elseif (preg_match('/^Currency([A-Z][A-Z][A-Z])$/i', $key, $reg)) {
 			$newstr = $this->getLabelFromKey($db, $reg[1], 'c_currencies', 'code_iso', 'label');
 		} elseif (preg_match('/^SendingMethod([0-9A-Z]+)$/i', $key, $reg)) {
 			$newstr = $this->getLabelFromKey($db, $reg[1], 'c_shipment_mode', 'code', 'libelle');
-		} elseif (preg_match('/^PaymentTypeShort([0-9A-Z]+)$/i', $key, $reg)) {
+		} elseif (preg_match('/^PaymentType(?:Short)?([0-9A-Z]+)$/i', $key, $reg)) {
 			$newstr = $this->getLabelFromKey($db, $reg[1], 'c_paiement', 'code', 'libelle', '', 1);
 		} elseif (preg_match('/^OppStatus([0-9A-Z]+)$/i', $key, $reg)) {
 			$newstr = $this->getLabelFromKey($db, $reg[1], 'c_lead_status', 'code', 'label');
 		} elseif (preg_match('/^OrderSource([0-9A-Z]+)$/i', $key, $reg)) {
 			// TODO OrderSourceX must be replaced with content of table llx_c_input_reason or llx_c_input_method
-			//$newstr=$this->getLabelFromKey($db,$reg[1],'c_ordersource','code','label');
+			//$newstr=$this->getLabelFromKey($db,$reg[1],'llx_c_input_reason','code','label');
 		}
 
 		/* Disabled. There is too many cases where translation of $newstr is not defined is normal (like when output with setEventMessage an already translated string)
-		if (! empty($conf->global->MAIN_FEATURES_LEVEL) && $conf->global->MAIN_FEATURES_LEVEL >= 2)
+		if (getDolGlobalInt('MAIN_FEATURES_LEVEL') >= 2)
 		{
 			dol_syslog(__METHOD__." MAIN_FEATURES_LEVEL=DEVELOP: missing translation for key '".$newstr."' in ".$_SERVER["PHP_SELF"], LOG_DEBUG);
 		}*/
@@ -630,7 +631,7 @@ class Translate
 			// We replace some HTML tags by __xx__ to avoid having them encoded by htmlentities because
 			// we want to keep '"' '<b>' '</b>' '<strong' '</strong>' '<a ' '</a>' '<br>' '< ' '<span' '</span>' that are reliable HTML tags inside translation strings.
 			$str = str_replace(
-				array('"', '<b>', '</b>', '<u>', '</u>', '<i>', '</i>', '<center>', '</center>', '<strong>', '</strong>', '<a ', '</a>', '<br>', '<span', '</span>', '< ', '>'), // We accept '< ' but not '<'. We can accept however '>'
+				array('"', '<b>', '</b>', '<u>', '</u>', '<i', '</i>', '<center>', '</center>', '<strong>', '</strong>', '<a ', '</a>', '<br>', '<span', '</span>', '< ', '>'), // We accept '< ' but not '<'. We can accept however '>'
 				array('__quot__', '__tagb__', '__tagbend__', '__tagu__', '__taguend__', '__tagi__', '__tagiend__', '__tagcenter__', '__tagcenterend__', '__tagb__', '__tagbend__', '__taga__', '__tagaend__', '__tagbr__', '__tagspan__', '__tagspanend__', '__ltspace__', '__gt__'),
 				$str
 			);
@@ -645,7 +646,7 @@ class Translate
 			// Restore reliable HTML tags into original translation string
 			$str = str_replace(
 				array('__quot__', '__tagb__', '__tagbend__', '__tagu__', '__taguend__', '__tagi__', '__tagiend__', '__tagcenter__', '__tagcenterend__', '__taga__', '__tagaend__', '__tagbr__', '__tagspan__', '__tagspanend__', '__ltspace__', '__gt__'),
-				array('"', '<b>', '</b>', '<u>', '</u>', '<i>', '</i>', '<center>', '</center>', '<a ', '</a>', '<br>', '<span', '</span>', '< ', '>'),
+				array('"', '<b>', '</b>', '<u>', '</u>', '<i', '</i>', '<center>', '</center>', '<a ', '</a>', '<br>', '<span', '</span>', '< ', '>'),
 				$str
 			);
 
@@ -655,7 +656,7 @@ class Translate
 
 			return $str;
 		} else { // Translation is not available
-			//if ($key[0] == '$') { return dol_eval($key,1); }
+			//if ($key[0] == '$') { return dol_eval($key, 1, 1, '1'); }
 			return $this->getTradFromKey($key);
 		}
 	}
@@ -721,7 +722,7 @@ class Translate
 			return $str;
 		} else {
 			if ($key[0] == '$') {
-				return dol_eval($key, 1);
+				return dol_eval($key, 1, 1, '1');
 			}
 			return $this->getTradFromKey($key);
 		}
@@ -734,6 +735,7 @@ class Translate
 	 *  @param	string	$str            string root to translate
 	 *  @param  string	$countrycode    country code (FR, ...)
 	 *  @return	string         			translated string
+	 *  @see transcountrynoentities(), picto_from_langcode()
 	 */
 	public function transcountry($str, $countrycode)
 	{
@@ -751,6 +753,7 @@ class Translate
 	 *  @param	string	$str            string root to translate
 	 *  @param  string	$countrycode    country code (FR, ...)
 	 *  @return string         			translated string
+	 *  @see transcountry(), picto_from_langcode()
 	 */
 	public function transcountrynoentities($str, $countrycode)
 	{
@@ -942,9 +945,9 @@ class Translate
 	 *
 	 * 		@param	DoliDB	$db				Database handler
 	 * 		@param	string	$key			Translation key to get label (key in language file)
-	 * 		@param	string	$tablename		Table name without prefix
-	 * 		@param	string	$fieldkey		Field for key
-	 * 		@param	string	$fieldlabel		Field for label
+	 * 		@param	string	$tablename		Table name without prefix. This value must always be a hardcoded string and not a value coming from user input.
+	 * 		@param	string	$fieldkey		Field for key. This value must always be a hardcoded string and not a value coming from user input.
+	 * 		@param	string	$fieldlabel		Field for label. This value must always be a hardcoded string and not a value coming from user input.
 	 *      @param	string	$keyforselect	Use another value than the translation key for the where into select
 	 *      @param  int		$filteronentity	Use a filter on entity
 	 *      @return string					Label in UTF8 (but without entities)
@@ -956,10 +959,15 @@ class Translate
 		if ($key == '') {
 			return '';
 		}
+		// Test should be useless because the 3 variables are never set from user input but we keep it in case of.
+		if (preg_match('/[^0-9A-Z_]/i', $tablename) || preg_match('/[^0-9A-Z_]/i', $fieldkey) || preg_match('/[^0-9A-Z_]/i', $fieldlabel)) {
+			$this->error = 'Bad value for parameter tablename, fieldkey or fieldlabel';
+			return -1;
+		}
 
 		//print 'param: '.$key.'-'.$keydatabase.'-'.$this->trans($key); exit;
 
-		// Check if a translation is available (this can call getTradFromKey)
+		// Check if a translation is available (Note: this can call getTradFromKey that can call getLabelFromKey)
 		$tmp = $this->transnoentitiesnoconv($key);
 		if ($tmp != $key && $tmp != 'ErrorBadValueForParamNotAString') {
 			return $tmp; // Found in language array
@@ -970,8 +978,9 @@ class Translate
 			return $this->cache_labels[$tablename][$key]; // Found in cache
 		}
 
+		// Not found in loaded language file nor in cache. So we will take the label into database.
 		$sql = "SELECT ".$fieldlabel." as label";
-		$sql .= " FROM ".MAIN_DB_PREFIX.$tablename;
+		$sql .= " FROM ".$db->prefix().$tablename;
 		$sql .= " WHERE ".$fieldkey." = '".$db->escape($keyforselect ? $keyforselect : $key)."'";
 		if ($filteronentity) {
 			$sql .= " AND entity IN (".getEntity($tablename).')';
@@ -1058,7 +1067,7 @@ class Translate
 		}
 
 		$sql = "SELECT code_iso, label, unicode";
-		$sql .= " FROM ".MAIN_DB_PREFIX."c_currencies";
+		$sql .= " FROM ".$db->prefix()."c_currencies";
 		$sql .= " WHERE active = 1";
 		if (!empty($currency_code)) {
 			$sql .= " AND code_iso = '".$db->escape($currency_code)."'";

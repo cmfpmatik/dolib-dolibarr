@@ -106,7 +106,7 @@ class Cstate // extends CommonObject
 		// Put here code to add control on parameters values
 
 		// Insert request
-		$sql = "INSERT INTO ".MAIN_DB_PREFIX."c_departements(";
+		$sql = "INSERT INTO ".$this->db->prefix()."c_departements(";
 		$sql .= "rowid,";
 		$sql .= "code_departement,";
 		$sql .= "nom,";
@@ -128,7 +128,7 @@ class Cstate // extends CommonObject
 		}
 
 		if (!$error) {
-			$this->id = $this->db->last_insert_id(MAIN_DB_PREFIX."c_departements");
+			$this->id = $this->db->last_insert_id($this->db->prefix()."c_departements");
 		}
 
 		// Commit or rollback
@@ -161,9 +161,9 @@ class Cstate // extends CommonObject
 		$sql .= " t.code_departement,";
 		$sql .= " t.nom,";
 		$sql .= " t.active";
-		$sql .= " FROM ".MAIN_DB_PREFIX."c_departements as t";
+		$sql .= " FROM ".$this->db->prefix()."c_departements as t";
 		if ($id) {
-			$sql .= " WHERE t.rowid = ".$id;
+			$sql .= " WHERE t.rowid = ".((int) $id);
 		} elseif ($code) {
 			$sql .= " WHERE t.code_departement = '".$this->db->escape($code)."'";
 		}
@@ -219,11 +219,11 @@ class Cstate // extends CommonObject
 		// Put here code to add control on parameters values
 
 		// Update request
-		$sql = "UPDATE ".MAIN_DB_PREFIX."c_departements SET";
+		$sql = "UPDATE ".$this->db->prefix()."c_departements SET";
 		$sql .= " code_departement=".(isset($this->code_departement) ? "'".$this->db->escape($this->code_departement)."'" : "null").",";
 		$sql .= " nom=".(isset($this->nom) ? "'".$this->db->escape($this->nom)."'" : "null").",";
 		$sql .= " active=".(isset($this->active) ? $this->active : "null")."";
-		$sql .= " WHERE rowid=".$this->id;
+		$sql .= " WHERE rowid=".((int) $this->id);
 
 		$this->db->begin();
 
@@ -260,8 +260,8 @@ class Cstate // extends CommonObject
 		global $conf, $langs;
 		$error = 0;
 
-		$sql = "DELETE FROM ".MAIN_DB_PREFIX."c_departements";
-		$sql .= " WHERE rowid=".$this->id;
+		$sql = "DELETE FROM ".$this->db->prefix()."c_departements";
+		$sql .= " WHERE rowid=".((int) $this->id);
 
 		$this->db->begin();
 

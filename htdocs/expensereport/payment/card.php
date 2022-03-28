@@ -162,7 +162,7 @@ $sql = 'SELECT er.rowid as eid, er.paid, er.total_ttc, per.amount';
 $sql .= ' FROM '.MAIN_DB_PREFIX.'payment_expensereport as per,'.MAIN_DB_PREFIX.'expensereport as er';
 $sql .= ' WHERE per.fk_expensereport = er.rowid';
 $sql .= ' AND er.entity IN ('.getEntity('expensereport').')';
-$sql .= ' AND per.rowid = '.$id;
+$sql .= ' AND per.rowid = '.((int) $id);
 
 dol_syslog("expensereport/payment/card.php", LOG_DEBUG);
 $resql = $db->query($sql);
@@ -240,7 +240,7 @@ print '<div class="tabsAction">';
 if ($action == '') {
 	if ($user->rights->expensereport->supprimer) {
 		if (!$disable_delete) {
-			print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$id.'&amp;action=delete&amp;token='.newToken().'">'.$langs->trans('Delete').'</a>';
+			print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$id.'&action=delete&token='.newToken().'">'.$langs->trans('Delete').'</a>';
 		} else {
 			print '<a class="butActionRefused classfortooltip" href="#" title="'.dol_escape_htmltag($title_button).'">'.$langs->trans('Delete').'</a>';
 		}

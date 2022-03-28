@@ -32,9 +32,22 @@
  * 				This script reads the conf file, init $lang, $db and and empty $user
  */
 
-require_once 'filefunc.inc.php'; // May have been already require by main.inc.php. But may not by scripts.
+// Include the conf.php and functions.lib.php and security.lib.php. This defined the constants like DOL_DOCUMENT_ROOT, DOL_DATA_ROOT, DOL_URL_ROOT...
+// This file may have been already required by main.inc.php. But may not by scripts. So, here the require_once must be kept.
+require_once 'filefunc.inc.php';
 
 
+if (!function_exists('is_countable')) {
+	/**
+	 * function is_countable (to remove when php version supported will be >= 7.3)
+	 * @param mixed $c data to check if countable
+	 * @return bool
+	 */
+	function is_countable($c)
+	{
+		return is_array($c) || $c instanceof Countable;
+	}
+}
 
 /*
  * Create $conf object
@@ -121,6 +134,7 @@ if (!defined('NOREQUIRETRAN')) {
 /*
  * Object $db
  */
+$db = null;
 if (!defined('NOREQUIREDB')) {
 	$db = getDoliDBInstance($conf->db->type, $conf->db->host, $conf->db->user, $conf->db->pass, $conf->db->name, $conf->db->port);
 
@@ -148,8 +162,9 @@ if (!defined('NOREQUIREDB')) {
 }
 
 // Now database connexion is known, so we can forget password
-//unset($dolibarr_main_db_pass); 	// We comment this because this constant is used in a lot of pages
+//unset($dolibarr_main_db_pass); 	// We comment this because this constant is used in some other pages
 unset($conf->db->pass); // This is to avoid password to be shown in memory/swap dump
+
 
 /*
  * Object $user
@@ -158,9 +173,9 @@ if (!defined('NOREQUIREUSER')) {
 	$user = new User($db);
 }
 
+
 /*
  * Load object $conf
- * After this, all parameters conf->global->CONSTANTS are loaded
  */
 
 // By default conf->entity is 1, but we change this if we ask another value.
@@ -177,29 +192,13 @@ if (session_id() && !empty($_SESSION["dol_entity"])) {
 	// For public page with MultiCompany module
 	$conf->entity = constant('DOLENTITY');
 }
-
 // Sanitize entity
 if (!is_numeric($conf->entity)) {
 	$conf->entity = 1;
 }
-
-if (!defined('NOREQUIREDB')) {
-	//print "Will work with data into entity instance number '".$conf->entity."'";
-
-	// Here we read database (llx_const table) and define $conf->global->XXX var.
-	$conf->setValues($db);
-}
-
-// Overwrite database value
-if (!empty($conf->file->mailing_limit_sendbyweb)) {
-	$conf->global->MAILING_LIMIT_SENDBYWEB = $conf->file->mailing_limit_sendbyweb;
-}
-if (empty($conf->global->MAILING_LIMIT_SENDBYWEB)) {
-	$conf->global->MAILING_LIMIT_SENDBYWEB = 25;
-}
-if (!empty($conf->file->mailing_limit_sendbycli)) {
-	$conf->global->MAILING_LIMIT_SENDBYCLI = $conf->file->mailing_limit_sendbycli;
-}
+// Here we read database (llx_const table) and define $conf->global->XXX var.
+//print "We work with data into entity instance number '".$conf->entity."'";
+$conf->setValues($db);
 
 // Create object $mysoc (A thirdparty object that contains properties of companies managed by Dolibarr.
 if (!defined('NOREQUIREDB') && !defined('NOREQUIRESOC')) {
@@ -218,7 +217,7 @@ if (!defined('NOREQUIREDB') && !defined('NOREQUIRESOC')) {
 // Set default language (must be after the setValues setting global $conf->global->MAIN_LANG_DEFAULT. Page main.inc.php will overwrite langs->defaultlang with user value later)
 if (!defined('NOREQUIRETRAN')) {
 	$langcode = (GETPOST('lang', 'aZ09') ? GETPOST('lang', 'aZ09', 1) : (empty($conf->global->MAIN_LANG_DEFAULT) ? 'auto' : $conf->global->MAIN_LANG_DEFAULT));
-	if (defined('MAIN_LANG_DEFAULT')) {
+	if (defined('MAIN_LANG_DEFAULT')) {	// So a page can force the language whatever is setup and parameters in URL
 		$langcode = constant('MAIN_LANG_DEFAULT');
 	}
 	$langs->setDefaultLang($langcode);

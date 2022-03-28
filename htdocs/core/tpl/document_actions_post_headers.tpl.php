@@ -47,6 +47,9 @@ if (!isset($permission)) {
 if (!isset($permtoedit)) {
 	$permtoedit = $permissiontoadd;
 }
+if (!isset($param)) {
+	$param = '';
+}
 
 // Drag and drop for up and down allowed on product, thirdparty, ...
 // The drag and drop call the page core/ajax/row.php
@@ -60,10 +63,10 @@ if (in_array($modulepart, array('product', 'produit', 'societe', 'user', 'ticket
 
 
 /*
- * Confirm form to delete
+ * Confirm form to delete a file
  */
 
-if ($action == 'delete') {
+if ($action == 'deletefile' || $action == 'deletelink') {
 	$langs->load("companies"); // Need for string DeleteFile+ConfirmDeleteFiles
 	print $form->formconfirm(
 		$_SERVER["PHP_SELF"].'?id='.$object->id.'&urlfile='.urlencode(GETPOST("urlfile")).'&linkid='.GETPOST('linkid', 'int').(empty($param) ? '' : $param),
@@ -71,13 +74,10 @@ if ($action == 'delete') {
 		$langs->trans('ConfirmDeleteFile'),
 		'confirm_deletefile',
 		'',
-		0,
+		'',
 		1
 	);
 }
-
-$formfile = new FormFile($db);
-
 
 // We define var to enable the feature to add prefix of uploaded files.
 // Caller of this include can make
@@ -113,6 +113,10 @@ if (!isset($savingdocmask) || !empty($conf->global->MAIN_DISABLE_SUGGEST_REF_AS_
 			$savingdocmask=$object->login.'___file__';
 		}*/
 	}
+}
+
+if (empty($formfile) || !is_object($formfile)) {
+	$formfile = new FormFile($db);
 }
 
 // Show upload form (document and links)

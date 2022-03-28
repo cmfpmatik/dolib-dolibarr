@@ -59,7 +59,7 @@ class InterfaceActionsBlockedLog extends DolibarrTriggers
 	 */
 	public function runTrigger($action, $object, User $user, Translate $langs, Conf $conf)
 	{
-		if (empty($conf->blockedlog->enabled)) {
+		if (empty($conf->blockedlog) || empty($conf->blockedlog->enabled)) {
 			return 0; // Module not active, we do nothing
 		}
 
@@ -118,6 +118,8 @@ class InterfaceActionsBlockedLog extends DolibarrTriggers
 				foreach ($object->amounts as $amount) {
 					$amounts += price2num($amount);
 				}
+			} elseif (!empty($object->amount)) {
+				$amounts = $object->amount;
 			}
 		} elseif (strpos($action, 'PAYMENT') !== false && !in_array($action, array('PAYMENT_ADD_TO_BANK'))) {
 			$qualified++;

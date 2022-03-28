@@ -4,6 +4,7 @@
  * Copyright (C) 2009-2017	Regis Houssin			<regis.houssin@inodbox.com>
  * Copyright (C) 2016		Charlie Benke			<charlie@patas-monkey.com>
  * Copyright (C) 2018-2019  Thibault Foucart		<support@ptibogxiv.net>
+ * Copyright (C) 2021     	Waël Almoman            <info@almoman.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -88,8 +89,19 @@ class AdherentType extends CommonObject
 	 */
 	public $subscription;
 
-	/** @var string 	Public note */
+	/**
+	 * @var float|string 	Amount for subscription (null or '' means not defined)
+	 */
+	public $amount;
+
+	/**
+	 * @var string 	Public note
+	 * @deprecated
+	 */
 	public $note;
+
+	/** @var string 	Public note */
+	public $note_public;
 
 	/** @var integer	Can vote */
 	public $vote;
@@ -102,6 +114,9 @@ class AdherentType extends CommonObject
 
 	/** @var string Email sent after resiliation */
 	public $mail_resiliate = '';
+
+	/** @var string Email sent after exclude */
+	public $mail_exclude = '';
 
 	/** @var array Array of members */
 	public $members = array();
@@ -133,7 +148,7 @@ class AdherentType extends CommonObject
 
 		$sql = "SELECT lang, label, description, email";
 		$sql .= " FROM ".MAIN_DB_PREFIX."adherent_type_lang";
-		$sql .= " WHERE fk_type=".$this->id;
+		$sql .= " WHERE fk_type = ".((int) $this->id);
 
 		$result = $this->db->query($sql);
 		if ($result) {
@@ -172,21 +187,21 @@ class AdherentType extends CommonObject
 			if ($key == $current_lang) {
 				$sql = "SELECT rowid";
 				$sql .= " FROM ".MAIN_DB_PREFIX."adherent_type_lang";
-				$sql .= " WHERE fk_type=".$this->id;
-				$sql .= " AND lang='".$key."'";
+				$sql .= " WHERE fk_type = ".((int) $this->id);
+				$sql .= " AND lang = '".$this->db->escape($key)."'";
 
 				$result = $this->db->query($sql);
 
 				if ($this->db->num_rows($result)) { // if there is already a description line for this language
 					$sql2 = "UPDATE ".MAIN_DB_PREFIX."adherent_type_lang";
-					$sql2 .= " SET ";
-					$sql2 .= " label='".$this->db->escape($this->label)."',";
-					$sql2 .= " description='".$this->db->escape($this->description)."'";
-					$sql2 .= " WHERE fk_type=".$this->id." AND lang='".$this->db->escape($key)."'";
+					$sql2 .= " SET";
+					$sql2 .= " label = '".$this->db->escape($this->label)."',";
+					$sql2 .= " description = '".$this->db->escape($this->description)."'";
+					$sql2 .= " WHERE fk_type = ".((int) $this->id)." AND lang='".$this->db->escape($key)."'";
 				} else {
 					$sql2 = "INSERT INTO ".MAIN_DB_PREFIX."adherent_type_lang (fk_type, lang, label, description";
 					$sql2 .= ")";
-					$sql2 .= " VALUES(".$this->id.",'".$this->db->escape($key)."','".$this->db->escape($this->label)."',";
+					$sql2 .= " VALUES(".((int) $this->id).",'".$this->db->escape($key)."','".$this->db->escape($this->label)."',";
 					$sql2 .= " '".$this->db->escape($this->description)."'";
 					$sql2 .= ")";
 				}
@@ -198,17 +213,17 @@ class AdherentType extends CommonObject
 			} elseif (isset($this->multilangs[$key])) {
 				$sql = "SELECT rowid";
 				$sql .= " FROM ".MAIN_DB_PREFIX."adherent_type_lang";
-				$sql .= " WHERE fk_type=".$this->id;
-				$sql .= " AND lang='".$key."'";
+				$sql .= " WHERE fk_type = ".((int) $this->id);
+				$sql .= " AND lang = '".$this->db->escape($key)."'";
 
 				$result = $this->db->query($sql);
 
 				if ($this->db->num_rows($result)) { // if there is already a description line for this language
 					$sql2 = "UPDATE ".MAIN_DB_PREFIX."adherent_type_lang";
 					$sql2 .= " SET ";
-					$sql2 .= " label='".$this->db->escape($this->multilangs["$key"]["label"])."',";
-					$sql2 .= " description='".$this->db->escape($this->multilangs["$key"]["description"])."'";
-					$sql2 .= " WHERE fk_type=".$this->id." AND lang='".$this->db->escape($key)."'";
+					$sql2 .= " label = '".$this->db->escape($this->multilangs["$key"]["label"])."',";
+					$sql2 .= " description = '".$this->db->escape($this->multilangs["$key"]["description"])."'";
+					$sql2 .= " WHERE fk_type = ".((int) $this->id)." AND lang='".$this->db->escape($key)."'";
 				} else {
 					$sql2 = "INSERT INTO ".MAIN_DB_PREFIX."adherent_type_lang (fk_type, lang, label, description";
 					$sql2 .= ")";
@@ -250,7 +265,7 @@ class AdherentType extends CommonObject
 	public function delMultiLangs($langtodelete, $user)
 	{
 		$sql = "DELETE FROM ".MAIN_DB_PREFIX."adherent_type_lang";
-		$sql .= " WHERE fk_type=".$this->id." AND lang='".$this->db->escape($langtodelete)."'";
+		$sql .= " WHERE fk_type = ".((int) $this->id)." AND lang = '".$this->db->escape($langtodelete)."'";
 
 		dol_syslog(get_class($this).'::delMultiLangs', LOG_DEBUG);
 		$result = $this->db->query($sql);
@@ -349,23 +364,28 @@ class AdherentType extends CommonObject
 
 		$this->label = trim($this->label);
 
+		if (empty($this->note_public) && !empty($this->note)) {		// For backward compatibility
+			$this->note_public = $this->note;
+		}
+
 		$this->db->begin();
 
 		$sql = "UPDATE ".MAIN_DB_PREFIX."adherent_type ";
 		$sql .= "SET ";
-		$sql .= "statut = ".$this->status.",";
+		$sql .= "statut = ".((int) $this->status).",";
 		$sql .= "libelle = '".$this->db->escape($this->label)."',";
 		$sql .= "morphy = '".$this->db->escape($this->morphy)."',";
 		$sql .= "subscription = '".$this->db->escape($this->subscription)."',";
+		$sql .= "amount = ".((empty($this->amount) && $this->amount == '') ? 'null' : ((float) $this->amount)).",";
 		$sql .= "duration = '".$this->db->escape($this->duration_value.$this->duration_unit)."',";
-		$sql .= "note = '".$this->db->escape($this->note)."',";
+		$sql .= "note = '".$this->db->escape($this->note_public)."',";
 		$sql .= "vote = ".(integer) $this->db->escape($this->vote).",";
 		$sql .= "mail_valid = '".$this->db->escape($this->mail_valid)."'";
-		$sql .= " WHERE rowid =".$this->id;
+		$sql .= " WHERE rowid =".((int) $this->id);
 
 		$result = $this->db->query($sql);
 		if ($result) {
-			$this->description = $this->db->escape($this->note);
+			$this->description = $this->db->escape($this->note_public);
 
 			// Multilangs
 			if (!empty($conf->global->MAIN_MULTILANGS)) {
@@ -421,7 +441,7 @@ class AdherentType extends CommonObject
 		$error = 0;
 
 		$sql = "DELETE FROM ".MAIN_DB_PREFIX."adherent_type";
-		$sql .= " WHERE rowid = ".$this->id;
+		$sql .= " WHERE rowid = ".((int) $this->id);
 
 		$resql = $this->db->query($sql);
 		if ($resql) {
@@ -451,7 +471,7 @@ class AdherentType extends CommonObject
 	{
 		global $langs, $conf;
 
-		$sql = "SELECT d.rowid, d.libelle as label, d.morphy, d.statut as status, d.duration, d.subscription, d.mail_valid, d.note, d.vote";
+		$sql = "SELECT d.rowid, d.libelle as label, d.morphy, d.statut as status, d.duration, d.subscription, d.amount, d.mail_valid, d.note as note_public, d.vote";
 		$sql .= " FROM ".MAIN_DB_PREFIX."adherent_type as d";
 		$sql .= " WHERE d.rowid = ".(int) $rowid;
 
@@ -471,14 +491,19 @@ class AdherentType extends CommonObject
 				$this->duration_value = substr($obj->duration, 0, dol_strlen($obj->duration) - 1);
 				$this->duration_unit  = substr($obj->duration, -1);
 				$this->subscription   = $obj->subscription;
+				$this->amount         = $obj->amount;
 				$this->mail_valid     = $obj->mail_valid;
-				$this->note           = $obj->note;
+				$this->note           = $obj->note_public;	// deprecated
+				$this->note_public    = $obj->note_public;
 				$this->vote           = $obj->vote;
 
 				// multilangs
 				if (!empty($conf->global->MAIN_MULTILANGS)) {
 					$this->getMultiLangs();
 				}
+
+				// fetch optionals attributes and labels
+				$this->fetch_optionals();
 			}
 
 			return 1;
@@ -529,9 +554,48 @@ class AdherentType extends CommonObject
 	}
 
 	/**
+	 *  Return the array of all amounts per membership type id
+	 *
+	 *  @param	int		$status			Filter on status of type
+	 *  @return array					Array of membership type
+	 */
+	public function amountByType($status = null)
+	{
+		global $conf, $langs;
+
+		$amountbytype = array();
+
+		$sql = "SELECT rowid, amount";
+		$sql .= " FROM ".MAIN_DB_PREFIX."adherent_type";
+		$sql .= " WHERE entity IN (".getEntity('member_type').")";
+		if ($status !== null) {
+			$sql .= " AND statut = ".((int) $status);
+		}
+
+		$resql = $this->db->query($sql);
+		if ($resql) {
+			$nump = $this->db->num_rows($resql);
+
+			if ($nump) {
+				$i = 0;
+				while ($i < $nump) {
+					$obj = $this->db->fetch_object($resql);
+
+					$amountbytype[$obj->rowid] = $obj->amount;
+					$i++;
+				}
+			}
+		} else {
+			print $this->db->error();
+		}
+
+		return $amountbytype;
+	}
+
+	/**
 	 * 	Return array of Member objects for member type this->id (or all if this->id not defined)
 	 *
-	 * 	@param	string	$excludefilter		Filter to exclude
+	 * 	@param	string	$excludefilter		Filter to exclude. This value must not come from a user input.
 	 *  @param	int		$mode				0=Return array of member instance
 	 *  									1=Return array of member instance without extra data
 	 *  									2=Return array of members id only
@@ -546,7 +610,7 @@ class AdherentType extends CommonObject
 		$sql = "SELECT a.rowid";
 		$sql .= " FROM ".MAIN_DB_PREFIX."adherent as a";
 		$sql .= " WHERE a.entity IN (".getEntity('member').")";
-		$sql .= " AND a.fk_adherent_type = ".$this->id;
+		$sql .= " AND a.fk_adherent_type = ".((int) $this->id);
 		if (!empty($excludefilter)) {
 			$sql .= ' AND ('.$excludefilter.')';
 		}
@@ -603,18 +667,18 @@ class AdherentType extends CommonObject
 	/**
 	 *  Return clicable name (with picto eventually)
 	 *
-	 *  @param		int		$withpicto		0=No picto, 1=Include picto into link, 2=Only picto
-	 *  @param		int		$maxlen			length max label
-	 *  @param		int  	$notooltip		1=Disable tooltip
-	 *  @return		string					String with URL
+	 *  @param		int		$withpicto					0=No picto, 1=Include picto into link, 2=Only picto
+	 *  @param		int		$maxlen						length max label
+	 *  @param		int  	$notooltip					1=Disable tooltip
+	 *  @param  	string  $morecss                    Add more css on link
+	 *  @param  	int     $save_lastsearch_value      -1=Auto, 0=No save of lastsearch_values when clicking, 1=Save lastsearch_values whenclicking
+	 *  @return		string								String with URL
 	 */
-	public function getNomUrl($withpicto = 0, $maxlen = 0, $notooltip = 0)
+	public function getNomUrl($withpicto = 0, $maxlen = 0, $notooltip = 0, $morecss = '', $save_lastsearch_value = -1)
 	{
 		global $langs;
 
 		$result = '';
-
-		$label = '';
 
 		$label = img_picto('', $this->picto).' <u class="paddingrightonly">'.$langs->trans("MemberType").'</u>';
 		$label .= ' '.$this->getLibStatut(4);
@@ -623,7 +687,22 @@ class AdherentType extends CommonObject
 			$label .= '<br>'.$langs->trans("SubscriptionRequired").': '.yn($this->subscription);
 		}
 
-		$linkstart = '<a href="'.DOL_URL_ROOT.'/adherents/type.php?rowid='.$this->id.'" title="'.dol_escape_htmltag($label, 1).'" class="classfortooltip">';
+		$option = '';
+
+		$url = DOL_URL_ROOT.'/adherents/type.php?rowid='.((int) $this->id);
+
+		if ($option != 'nolink') {
+			// Add param to save lastsearch_values or not
+			$add_save_lastsearch_values = ($save_lastsearch_value == 1 ? 1 : 0);
+			if ($save_lastsearch_value == -1 && preg_match('/list\.php/', $_SERVER["PHP_SELF"])) {
+				$add_save_lastsearch_values = 1;
+			}
+			if ($add_save_lastsearch_values) {
+				$url .= '&save_lastsearch_values=1';
+			}
+		}
+
+		$linkstart = '<a href="'.$url.'" title="'.dol_escape_htmltag($label, 1).'" class="classfortooltip">';
 		$linkend = '</a>';
 
 		$result .= $linkstart;
@@ -669,10 +748,10 @@ class AdherentType extends CommonObject
 		}
 
 		if (empty($this->labelStatus) || empty($this->labelStatusShort)) {
-			$this->labelStatus[0] = $langs->trans("ActivityCeased");
-			$this->labelStatus[1] = $langs->trans("InActivity");
-			$this->labelStatusShort[0] = $langs->trans("ActivityCeased");
-			$this->labelStatusShort[1] = $langs->trans("InActivity");
+			$this->labelStatus[0] = $langs->transnoentitiesnoconv("ActivityCeased");
+			$this->labelStatus[1] = $langs->transnoentitiesnoconv("InActivity");
+			$this->labelStatusShort[0] = $langs->transnoentitiesnoconv("ActivityCeased");
+			$this->labelStatusShort[1] = $langs->transnoentitiesnoconv("InActivity");
 		}
 
 		return dolGetStatus($this->labelStatus[$status], $this->labelStatusShort[$status], '', $statusType, $mode);
@@ -724,12 +803,16 @@ class AdherentType extends CommonObject
 		// Object classes
 		$info["objectclass"] = explode(',', $conf->global->LDAP_MEMBER_TYPE_OBJECT_CLASS);
 
+		if (empty($this->note_public) && !empty($this->note)) {		// For backward compatibility
+			$this->note_public = $this->note;
+		}
+
 		// Champs
 		if ($this->label && !empty($conf->global->LDAP_MEMBER_TYPE_FIELD_FULLNAME)) {
 			$info[$conf->global->LDAP_MEMBER_TYPE_FIELD_FULLNAME] = $this->label;
 		}
-		if ($this->note && !empty($conf->global->LDAP_MEMBER_TYPE_FIELD_DESCRIPTION)) {
-			$info[$conf->global->LDAP_MEMBER_TYPE_FIELD_DESCRIPTION] = dol_string_nohtmltag($this->note, 0, 'UTF-8', 1);
+		if ($this->note_public && !empty($conf->global->LDAP_MEMBER_TYPE_FIELD_DESCRIPTION)) {
+			$info[$conf->global->LDAP_MEMBER_TYPE_FIELD_DESCRIPTION] = dol_string_nohtmltag($this->note_public, 0, 'UTF-8', 1);
 		}
 		if (!empty($conf->global->LDAP_MEMBER_TYPE_FIELD_GROUPMEMBERS)) {
 			$valueofldapfield = array();
@@ -761,7 +844,7 @@ class AdherentType extends CommonObject
 		$this->specimen = 1;
 
 		$this->label = 'MEMBERS TYPE SPECIMEN';
-		$this->note = 'This is a note';
+		$this->note_public = 'This is a public note';
 		$this->mail_valid = 'This is welcome email';
 		$this->subscription = 1;
 		$this->vote = 0;
@@ -813,6 +896,21 @@ class AdherentType extends CommonObject
 		// NOTE mail_resiliate not defined so never used
 		if (!empty($this->mail_resiliate) && trim(dol_htmlentitiesbr_decode($this->mail_resiliate))) {  // Property not yet defined
 			return $this->mail_resiliate;
+		}
+
+		return '';
+	}
+
+	/**
+	 *     getMailOnExclude
+	 *
+	 *     @return string     Return mail model content of type or empty
+	 */
+	public function getMailOnExclude()
+	{
+		// NOTE mail_exclude not defined so never used
+		if (!empty($this->mail_exclude) && trim(dol_htmlentitiesbr_decode($this->mail_exclude))) {  // Property not yet defined
+			return $this->mail_exclude;
 		}
 
 		return '';

@@ -435,7 +435,7 @@ class Cronjob extends CommonObject
 		$sql .= " t.test";
 		$sql .= " FROM ".MAIN_DB_PREFIX."cronjob as t";
 		if ($id > 0) {
-			$sql .= " WHERE t.rowid = ".$id;
+			$sql .= " WHERE t.rowid = ".((int) $id);
 		} else {
 			$sql .= " WHERE t.entity IN(0, ".getEntity('cron').")";
 			$sql .= " AND t.objectname = '".$this->db->escape($objectname)."'";
@@ -553,13 +553,13 @@ class Cronjob extends CommonObject
 		} elseif ($status == 2) {
 			$sql .= " AND t.status = 2";
 		}
-		//Manage filter
+		// Manage filter
 		if (is_array($filter) && count($filter) > 0) {
 			foreach ($filter as $key => $value) {
 				if ($key == 't.rowid') {
-					$sql .= ' AND '.$key.' = '.$this->db->escape($value);
+					$sql .= " AND ".$key." = ".((int) $value);
 				} else {
-					$sql .= ' AND '.$key.' LIKE \'%'.$this->db->escape($value).'%\'';
+					$sql .= " AND ".$key." LIKE '%".$this->db->escape($value)."%'";
 				}
 			}
 		}
@@ -786,7 +786,7 @@ class Cronjob extends CommonObject
 		$sql .= " maxrun=".((isset($this->maxrun) && $this->maxrun > 0) ? $this->maxrun : "0").",";
 		$sql .= " libname=".(isset($this->libname) ? "'".$this->db->escape($this->libname)."'" : "null").",";
 		$sql .= " test=".(isset($this->test) ? "'".$this->db->escape($this->test)."'" : "null");
-		$sql .= " WHERE rowid=".$this->id;
+		$sql .= " WHERE rowid=".((int) $this->id);
 
 		$this->db->begin();
 
@@ -825,7 +825,7 @@ class Cronjob extends CommonObject
 		$this->db->begin();
 
 		$sql = "DELETE FROM ".MAIN_DB_PREFIX."cronjob";
-		$sql .= " WHERE rowid=".$this->id;
+		$sql .= " WHERE rowid=".((int) $this->id);
 
 		dol_syslog(get_class($this)."::delete", LOG_DEBUG);
 		$resql = $this->db->query($sql);
@@ -859,6 +859,8 @@ class Cronjob extends CommonObject
 	 */
 	public function createFromClone(User $user, $fromid)
 	{
+		global $langs;
+
 		$error = 0;
 
 		$object = new Cronjob($this->db);
@@ -868,10 +870,10 @@ class Cronjob extends CommonObject
 		// Load source object
 		$object->fetch($fromid);
 		$object->id = 0;
-		$object->statut = 0;
 
 		// Clear fields
-		// ...
+		$object->status = self::STATUS_DISABLED;
+		$object->label = $langs->trans("CopyOf").' '.$object->label;
 
 		// Create clone
 		$object->context['createfromclone'] = 'createfromclone';
@@ -882,11 +884,6 @@ class Cronjob extends CommonObject
 			$this->error = $object->error;
 			$error++;
 		}
-
-		//if (! $error)
-		//{
-
-		//}
 
 		unset($object->context['createfromclone']);
 
@@ -1027,7 +1024,7 @@ class Cronjob extends CommonObject
 		$sql = "SELECT";
 		$sql .= " f.rowid, f.datec, f.tms, f.fk_user_mod, f.fk_user_author";
 		$sql .= " FROM ".MAIN_DB_PREFIX."cronjob as f";
-		$sql .= " WHERE f.rowid = ".$id;
+		$sql .= " WHERE f.rowid = ".((int) $id);
 
 		dol_syslog(get_class($this)."::fetch", LOG_DEBUG);
 		$resql = $this->db->query($sql);
@@ -1084,7 +1081,7 @@ class Cronjob extends CommonObject
 			dol_syslog("We try to run a job in entity ".$this->entity." when we are in entity ".$conf->entity, LOG_WARNING);
 		}
 		$savcurrententity = $conf->entity;
-		$conf->entity = $this->entity;
+		$conf->setEntityValues($this->db, $this->entity);
 		dol_syslog(get_class($this)."::run_jobs entity for running job is ".$conf->entity);
 
 		require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
@@ -1093,13 +1090,13 @@ class Cronjob extends CommonObject
 		if ($result < 0) {
 			$this->error = "User Error:".$user->error;
 			dol_syslog(get_class($this)."::run_jobs ".$this->error, LOG_ERR);
-			$conf->entity = $savcurrententity;
+			$conf->setEntityValues($this->db, $savcurrententity);
 			return -1;
 		} else {
 			if (empty($user->id)) {
 				$this->error = " User user login:".$userlogin." do not exists";
 				dol_syslog(get_class($this)."::run_jobs ".$this->error, LOG_ERR);
-				$conf->entity = $savcurrententity;
+				$conf->setEntityValues($this->db, $savcurrententity);
 				return -1;
 			}
 		}
@@ -1129,7 +1126,7 @@ class Cronjob extends CommonObject
 		$result = $this->update($user); // This include begin/commit
 		if ($result < 0) {
 			dol_syslog(get_class($this)."::run_jobs ".$this->error, LOG_ERR);
-			$conf->entity = $savcurrententity;
+			$conf->setEntityValues($this->db, $savcurrententity);
 			return -1;
 		}
 
@@ -1140,9 +1137,9 @@ class Cronjob extends CommonObject
 				$ret = dol_include_once($this->classesname);
 				if ($ret === false || (!class_exists($this->objectname))) {
 					if ($ret === false) {
-						$this->error = $langs->trans('CronCannotLoadClass', $this->classesname, $this->objectname);
+						$this->error = $langs->transnoentitiesnoconv('CronCannotLoadClass', $this->classesname, $this->objectname);
 					} else {
-						$this->error = $langs->trans('CronCannotLoadObject', $this->classesname, $this->objectname);
+						$this->error = $langs->transnoentitiesnoconv('CronCannotLoadObject', $this->classesname, $this->objectname);
 					}
 					dol_syslog(get_class($this)."::run_jobs ".$this->error, LOG_ERR);
 					$this->lastoutput = $this->error;
@@ -1155,7 +1152,7 @@ class Cronjob extends CommonObject
 			// test if method exists
 			if (!$error) {
 				if (!method_exists($this->objectname, $this->methodename)) {
-					$this->error = $langs->trans('CronMethodDoesNotExists', $this->objectname, $this->methodename);
+					$this->error = $langs->transnoentitiesnoconv('CronMethodDoesNotExists', $this->objectname, $this->methodename);
 					dol_syslog(get_class($this)."::run_jobs ".$this->error, LOG_ERR);
 					$this->lastoutput = $this->error;
 					$this->lastresult = -1;
@@ -1163,7 +1160,7 @@ class Cronjob extends CommonObject
 					$error++;
 				}
 				if (in_array(strtolower(trim($this->methodename)), array('executecli'))) {
-					$this->error = $langs->trans('CronMethodNotAllowed', $this->methodename, $this->objectname);
+					$this->error = $langs->transnoentitiesnoconv('CronMethodNotAllowed', $this->methodename, $this->objectname);
 					dol_syslog(get_class($this)."::run_jobs ".$this->error, LOG_ERR);
 					$this->lastoutput = $this->error;
 					$this->lastresult = -1;
@@ -1244,7 +1241,7 @@ class Cronjob extends CommonObject
 			if ($ret === false) {
 				$this->error = $langs->trans('CronCannotLoadLib').': '.$libpath;
 				dol_syslog(get_class($this)."::run_jobs ".$this->error, LOG_ERR);
-				$conf->entity = $savcurrententity;
+				$conf->setEntityValues($this->db, $savcurrententity);
 				return -1;
 			}
 
@@ -1253,7 +1250,7 @@ class Cronjob extends CommonObject
 			$result = $langs->load($this->module_name.'@'.$this->module_name); // If this->module_name was an existing language file, this will make nothing
 			if ($result < 0) {	// If technical error
 				dol_syslog(get_class($this)."::run_jobs Cannot load module langs".$langs->error, LOG_ERR);
-				$conf->entity = $savcurrententity;
+				$conf->setEntityValues($this->db, $savcurrententity);
 				return -1;
 			}
 
@@ -1319,11 +1316,11 @@ class Cronjob extends CommonObject
 		$result = $this->update($user); // This include begin/commit
 		if ($result < 0) {
 			dol_syslog(get_class($this)."::run_jobs ".$this->error, LOG_ERR);
-			$conf->entity = $savcurrententity;
+			$conf->setEntityValues($this->db, $savcurrententity);
 			return -1;
 		}
 
-		$conf->entity = $savcurrententity;
+		$conf->setEntityValues($this->db, $savcurrententity);
 		return $error ?-1 : 1;
 	}
 
@@ -1435,10 +1432,10 @@ class Cronjob extends CommonObject
 				$moretext .= ' ('.$langs->trans("Error").')';
 			}
 
-			$this->labelStatus[self::STATUS_DISABLED] = $langs->trans('Disabled').$moretext;
-			$this->labelStatus[self::STATUS_ENABLED] = $langs->trans('Scheduled').$moretext;
-			$this->labelStatusShort[self::STATUS_DISABLED] = $langs->trans('Disabled');
-			$this->labelStatusShort[self::STATUS_ENABLED] = $langs->trans('Scheduled');
+			$this->labelStatus[self::STATUS_DISABLED] = $langs->transnoentitiesnoconv('Disabled').$moretext;
+			$this->labelStatus[self::STATUS_ENABLED] = $langs->transnoentitiesnoconv('Scheduled').$moretext;
+			$this->labelStatusShort[self::STATUS_DISABLED] = $langs->transnoentitiesnoconv('Disabled');
+			$this->labelStatusShort[self::STATUS_ENABLED] = $langs->transnoentitiesnoconv('Scheduled');
 		}
 
 		$statusType = 'status4';

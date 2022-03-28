@@ -318,13 +318,17 @@ class CompanyPaymentMode extends CommonObject
 	public function fetch($id, $ref = null, $socid = 0, $type = '', $morewhere = '')
 	{
 		if ($socid) {
-			$morewhere .= " AND fk_soc  = ".$this->db->escape($socid)." AND default_rib = 1";
+			$morewhere .= " AND fk_soc = ".((int) $socid)." AND default_rib = 1";
 		}
 		if ($type) {
 			$morewhere .= " AND type = '".$this->db->escape($type)."'";
 		}
 
 		$result = $this->fetchCommon($id, $ref, $morewhere);
+
+		// For backward compatibility
+		$this->iban = $this->iban_prefix;
+
 		//if ($result > 0 && ! empty($this->table_element_line)) $this->fetchLines();
 		return $result;
 	}
@@ -394,7 +398,7 @@ class CompanyPaymentMode extends CommonObject
 		$label .= '<br>';
 		$label .= '<b>'.$langs->trans('Ref').':</b> '.$this->ref;
 
-		$url = dol_buildpath('/monmodule/companypaymentmode_card.php', 1).'?id='.$this->id;
+		$url = '';
 
 		if ($option != 'nolink') {
 			// Add param to save lastsearch_values or not
@@ -464,7 +468,7 @@ class CompanyPaymentMode extends CommonObject
 				$this->db->begin();
 
 				$sql2 = "UPDATE ".MAIN_DB_PREFIX."societe_rib SET default_rib = 0, tms = tms";
-				$sql2 .= " WHERE default_rib <> 0 AND fk_soc = ".$obj->fk_soc;
+				$sql2 .= " WHERE default_rib <> 0 AND fk_soc = ".((int) $obj->fk_soc);
 				if ($type) {
 					$sql2 .= " AND type = '".$this->db->escape($type)."'";
 				}
@@ -472,7 +476,7 @@ class CompanyPaymentMode extends CommonObject
 				$result2 = $this->db->query($sql2);
 
 				$sql3 = "UPDATE ".MAIN_DB_PREFIX."societe_rib SET default_rib = 1";
-				$sql3 .= " WHERE rowid = ".$obj->id;
+				$sql3 .= " WHERE rowid = ".((int) $obj->id);
 				if ($type) {
 					$sql3 .= " AND type = '".$this->db->escape($type)."'";
 				}
@@ -519,10 +523,10 @@ class CompanyPaymentMode extends CommonObject
 		if (empty($this->labelStatus) || empty($this->labelStatusShort)) {
 			global $langs;
 			//$langs->load("mymodule");
-			$this->labelStatus[self::STATUS_ENABLED] = $langs->trans('Enabled');
-			$this->labelStatus[self::STATUS_CANCELED] = $langs->trans('Disabled');
-			$this->labelStatusShort[self::STATUS_ENABLED] = $langs->trans('Enabled');
-			$this->labelStatusShort[self::STATUS_CANCELED] = $langs->trans('Disabled');
+			$this->labelStatus[self::STATUS_ENABLED] = $langs->transnoentitiesnoconv('Enabled');
+			$this->labelStatus[self::STATUS_CANCELED] = $langs->transnoentitiesnoconv('Disabled');
+			$this->labelStatusShort[self::STATUS_ENABLED] = $langs->transnoentitiesnoconv('Enabled');
+			$this->labelStatusShort[self::STATUS_CANCELED] = $langs->transnoentitiesnoconv('Disabled');
 		}
 
 		$statusType = 'status5';
@@ -544,7 +548,7 @@ class CompanyPaymentMode extends CommonObject
 		$sql = 'SELECT rowid, date_creation as datec, tms as datem,';
 		$sql .= ' fk_user_creat, fk_user_modif';
 		$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element.' as t';
-		$sql .= ' WHERE t.rowid = '.$id;
+		$sql .= ' WHERE t.rowid = '.((int) $id);
 		$result = $this->db->query($sql);
 		if ($result) {
 			if ($this->db->num_rows($result)) {

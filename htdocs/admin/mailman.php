@@ -46,21 +46,27 @@ $action = GETPOST('action', 'aZ09');
 $testsubscribeemail = GETPOST("testsubscribeemail");
 $testunsubscribeemail = GETPOST("testunsubscribeemail");
 
+$error = 0;
+
+
 /*
  * Actions
  */
 
 // Action updated or added a constant
 if ($action == 'update' || $action == 'add') {
-	foreach ($_POST['constname'] as $key => $val) {
-		$constname = $_POST["constname"][$key];
-		$constvalue = $_POST["constvalue"][$key];
-		$consttype = $_POST["consttype"][$key];
-		$constnote = $_POST["constnote"][$key];
-		$res = dolibarr_set_const($db, $constname, $constvalue, $type[$consttype], 0, $constnote, $conf->entity);
+	$tmparray = GETPOST('constname', 'array');
+	if (is_array($tmparray)) {
+		foreach ($tmparray as $key => $val) {
+			$constname = $tmparray[$key];
+			$constvalue = $tmparray[$key];
+			$consttype = $tmparray[$key];
+			$constnote = $tmparray[$key];
+			$res = dolibarr_set_const($db, $constname, $constvalue, $type[$consttype], 0, $constnote, $conf->entity);
 
-		if (!($res > 0)) {
-			$error++;
+			if (!($res > 0)) {
+				$error++;
+			}
 		}
 	}
 
@@ -212,7 +218,7 @@ if (!empty($conf->global->ADHERENT_USE_MAILMAN)) {
 	print '<input type="hidden" name="action" value="testsubscribe">';
 
 	print $langs->trans("TestSubscribe").'<br>';
-	print $langs->trans("EMail").' <input type="email" class="flat" name="testsubscribeemail" value="'.GETPOST('testsubscribeemail').'"> <input class="button" type="submit" value="'.$langs->trans("Test").'"><br>';
+	print $langs->trans("EMail").' <input type="email" class="flat" name="testsubscribeemail" value="'.GETPOST('testsubscribeemail').'"> <input type="submit" class="button" value="'.$langs->trans("Test").'"><br>';
 
 	print '</form>';
 
@@ -221,7 +227,7 @@ if (!empty($conf->global->ADHERENT_USE_MAILMAN)) {
 	print '<input type="hidden" name="action" value="testunsubscribe">';
 
 	print $langs->trans("TestUnSubscribe").'<br>';
-	print $langs->trans("EMail").' <input type="email" class="flat" name="testunsubscribeemail" value="'.GETPOST('testunsubscribeemail').'"> <input class="button" type="submit" value="'.$langs->trans("Test").'"><br>';
+	print $langs->trans("EMail").' <input type="email" class="flat" name="testunsubscribeemail" value="'.GETPOST('testunsubscribeemail').'"> <input type="submit" class="button" value="'.$langs->trans("Test").'"><br>';
 
 	print '</form>';
 }

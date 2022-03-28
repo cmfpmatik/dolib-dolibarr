@@ -33,10 +33,6 @@ use OAuth\Common\Storage\DoliStorage;
 // Load translation files required by the page
 $langs->loadLangs(array('admin', 'printing', 'oauth'));
 
-if (!$user->admin) {
-	accessforbidden();
-}
-
 $action = GETPOST('action', 'aZ09');
 $mode = GETPOST('mode', 'alpha');
 $value = GETPOST('value', 'alpha', 0, null, null, 1); // The value may be __google__docs so we force disable of replace
@@ -52,6 +48,10 @@ if (!$mode) {
 }
 
 $OAUTH_SERVICENAME_GOOGLE = 'Google';
+
+if (!$user->admin) {
+	accessforbidden();
+}
 
 
 /*
@@ -274,13 +274,13 @@ if ($mode == 'config' && $user->admin) {
 			print ajax_constantonoff($printer->active);
 		} else {
 			if (empty($conf->global->{$printer->conf})) {
-				print '<a href="'.$_SERVER['PHP_SELF'].'?action=setvalue&amp;token='.newToken().'&amp;varname='.$printer->active.'&amp;value=1">'.img_picto($langs->trans("Disabled"), 'off').'</a>';
+				print '<a href="'.$_SERVER['PHP_SELF'].'?action=setvalue&token='.newToken().'&varname='.urlencode($printer->active).'&value=1">'.img_picto($langs->trans("Disabled"), 'off').'</a>';
 			} else {
-				print '<a href="'.$_SERVER['PHP_SELF'].'?action=setvalue&amp;token='.newToken().'&amp;varname='.$printer->active.'&amp;value=0">'.img_picto($langs->trans("Enabled"), 'on').'</a>';
+				print '<a href="'.$_SERVER['PHP_SELF'].'?action=setvalue&token='.newToken().'&varname='.urlencode($printer->active).'&value=0">'.img_picto($langs->trans("Enabled"), 'on').'</a>';
 			}
 		}
-		print '<td class="center"><a href="'.$_SERVER['PHP_SELF'].'?mode=setup&amp;driver='.$printer->name.'">'.img_picto('', 'setup').'</a></td>';
-		print '<td class="center"><a href="'.$_SERVER['PHP_SELF'].'?mode=test&amp;driver='.$printer->name.'">'.img_picto('', 'setup').'</a></td>';
+		print '<td class="center"><a href="'.$_SERVER['PHP_SELF'].'?mode=setup&token='.newToken().'&driver='.urlencode($printer->name).'">'.img_picto('', 'setup').'</a></td>';
+		print '<td class="center"><a href="'.$_SERVER['PHP_SELF'].'?mode=test&token='.newToken().'&driver='.urlencode($printer->name).'">'.img_picto('', 'setup').'</a></td>';
 		print '</tr>'."\n";
 	}
 

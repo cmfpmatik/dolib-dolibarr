@@ -83,7 +83,7 @@ if ($resql) {
 }
 
 
-print '</div><div class="fichetwothirdright"><div class="ficheaddleft">';
+print '</div><div class="fichetwothirdright">';
 
 $max = 10;
 
@@ -131,7 +131,7 @@ if ($resql) {
 		print '<td>'.dol_print_date($db->jdate($objp->db), 'day').'</td>';
 		print '<td class="nowraponall">'.$accountstatic->getNomUrl(1).'</td>';
 		print '<td class="right">'.$objp->nbcheque.'</td>';
-		print '<td class="right">'.price($objp->amount).'</td>';
+		print '<td class="right"><span class="amount">'.price($objp->amount).'</span></td>';
 		print '<td class="right">'.$checkdepositstatic->LibStatut($objp->statut, 3).'</td>';
 
 		print '</tr>';
@@ -145,7 +145,7 @@ if ($resql) {
 }
 
 
-print '</div></div></div>';
+print '</div></div>';
 
 // End of page
 llxFooter();

@@ -22,7 +22,7 @@
  *	\brief      Module to manage EMailings
  *	\file       htdocs/core/modules/modMailing.class.php
  *	\ingroup    mailing
- *	\brief      Fichier de description et activation du module Mailing
+ *	\brief      Description and activation file for the module Mailing
  */
 
 include_once DOL_DOCUMENT_ROOT.'/core/modules/DolibarrModules.class.php';
@@ -48,7 +48,7 @@ class modMailing extends DolibarrModules
 		// It is used to group modules by family in module setup page
 		$this->family = "interface";
 		// Module position in the family on 2 digits ('01', '10', '20', ...)
-		$this->module_position = '22';
+		$this->module_position = '23';
 
 		// Module label (no space allowed), used if translation string 'ModuleXXXName' not found (where XXX is value of numeric property 'numero' of module)
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
@@ -79,7 +79,7 @@ class modMailing extends DolibarrModules
 		$this->const[$r][0] = "MAILING_CONTACT_DEFAULT_BULK_STATUS";
 		$this->const[$r][1] = "chaine";
 		$this->const[$r][2] = "0";
-		$this->const[$r][3] = 'Default black list mailing';
+		$this->const[$r][3] = 'Default value for field "Refuse bulk email" when creating a contact';
 		$this->const[$r][4] = 0;
 		$r++;
 
@@ -159,6 +159,11 @@ class modMailing extends DolibarrModules
 	 */
 	public function init($options = '')
 	{
+		$result = $this->_load_tables('/install/mysql/tables/', 'mailing');
+		if ($result < 0) {
+			return -1; // Do not activate module if error 'not allowed' returned when loading module SQL queries (the _load_table run sql with run_sql with the error allowed parameter set to 'default')
+		}
+
 		// Permissions
 		$this->remove($options);
 

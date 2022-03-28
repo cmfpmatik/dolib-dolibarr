@@ -36,14 +36,17 @@ $langs->loadLangs(array('compta', 'bills'));
 $id = GETPOST('id', 'int');
 $action = GETPOST('action', 'aZ09');
 
+$object = new ChargeSociales($db);
+if ($id > 0) {
+	$object->fetch($id);
+}
+
 // Security check
 $socid = GETPOST('socid', 'int');
 if ($user->socid) {
 	$socid = $user->socid;
 }
-$result = restrictedArea($user, 'tax', $id, 'chargesociales', 'charges');
-
-$object = new ChargeSociales($db);
+$result = restrictedArea($user, 'tax', $object->id, 'chargesociales', 'charges');
 
 
 /*
@@ -78,7 +81,7 @@ $object->info($id);
 
 $head = tax_prepare_head($object);
 
-print dol_get_fiche_head($head, 'info', $langs->trans("SocialContribution"), -1, 'bill');
+print dol_get_fiche_head($head, 'info', $langs->trans("SocialContribution"), -1, $object->picto);
 
 $morehtmlref = '<div class="refidno">';
 // Label of social contribution
@@ -91,9 +94,10 @@ if (!empty($conf->projet->enabled)) {
 	if (!empty($object->fk_project)) {
 		$proj = new Project($db);
 		$proj->fetch($object->fk_project);
-		$morehtmlref .= '<a href="'.DOL_URL_ROOT.'/projet/card.php?id='.$object->fk_project.'" title="'.$langs->trans('ShowProject').'">';
-		$morehtmlref .= $proj->ref;
-		$morehtmlref .= '</a>';
+		$morehtmlref .= ' : '.$proj->getNomUrl(1);
+		if ($proj->title) {
+			$morehtmlref .= ' - '.$proj->title;
+		}
 	} else {
 		$morehtmlref .= '';
 	}
@@ -111,7 +115,7 @@ print '<div class="underbanner clearboth"></div>';
 
 print '<br>';
 
-print '<table width="100%"><tr><td>';
+print '<table class="centpercent"><tr><td>';
 dol_print_object_info($object);
 print '</td></tr></table>';
 

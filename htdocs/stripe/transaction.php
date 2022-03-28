@@ -1,6 +1,6 @@
 <?php
 /* Copyright (C) 2018-2019  Thibault FOUCART        <support@ptibogxiv.net>
- * Copyright (C) 2018       Frédéric France         <frederic.france@netlogic.fr>
+ * Copyright (C) 2018-2021  Frédéric France         <frederic.france@netlogic.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,8 +42,8 @@ if ($user->socid) {
 
 $limit = GETPOST('limit', 'int') ? GETPOST('limit', 'int') : $conf->liste_limit;
 $rowid = GETPOST("rowid", 'alpha');
-$sortfield = GETPOST("sortfield", 'alpha');
-$sortorder = GETPOST("sortorder", 'alpha');
+$sortfield = GETPOST('sortfield', 'aZ09comma');
+$sortorder = GETPOST('sortorder', 'aZ09comma');
 $page = GETPOSTISSET('pageplusone') ? (GETPOST('pageplusone') - 1) : GETPOST("page", 'int');
 if (empty($page) || $page == -1) {
 	$page = 0;
@@ -51,7 +51,9 @@ if (empty($page) || $page == -1) {
 $offset = $limit * $page;
 $pageprev = $page - 1;
 $pagenext = $page + 1;
+$optioncss = GETPOST('optioncss', 'alpha');
 
+$result = restrictedArea($user, 'banque');
 
 
 /*
@@ -185,12 +187,10 @@ if (!$rowid) {
 			//print "<td>".$charge->customer."</td>\n";
 			// Link
 			/*print "<td>";
-			if ($societestatic->id > 0)
-			{
+			if ($societestatic->id > 0) {
 				print $societestatic->getNomUrl(1);
 			}
-			if ($memberstatic->id > 0)
-			{
+			if ($memberstatic->id > 0) {
 				print $memberstatic->getNomUrl(1);
 			}
 			print "</td>\n";*/

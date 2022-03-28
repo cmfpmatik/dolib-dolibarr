@@ -35,27 +35,21 @@ require_once DOL_DOCUMENT_ROOT.'/product/class/html.formproduct.class.php';
 // Load translation files required by the page
 $langs->loadLangs(array('products', 'stocks'));
 
-// Security check
-if ($user->socid) {
-	$socid = $user->socid;
-}
-$result = restrictedArea($user, 'produit|service');
-
-
 $action = GETPOST('action', 'aZ09');
 $sref = GETPOST("sref", 'alpha');
 $snom = GETPOST("snom", 'alpha');
 $sall = trim((GETPOST('search_all', 'alphanohtml') != '') ?GETPOST('search_all', 'alphanohtml') : GETPOST('sall', 'alphanohtml'));
-$type = GETPOST("type", "int");
+$type = GETPOSTISSET('type') ? GETPOST('type', 'int') : Product::TYPE_PRODUCT;
 $search_barcode = GETPOST("search_barcode", 'alpha');
-$catid = GETPOST('catid', 'int');
 $toolowstock = GETPOST('toolowstock');
 $tosell = GETPOST("tosell");
 $tobuy = GETPOST("tobuy");
 $fourn_id = GETPOST("fourn_id", 'int');
+$sbarcode = GETPOST("sbarcode", 'int');
+$search_stock_physique = GETPOST('search_stock_physique', 'alpha');
 
-$sortfield = GETPOST("sortfield", 'alpha');
-$sortorder = GETPOST("sortorder", 'alpha');
+$sortfield = GETPOST('sortfield', 'aZ09comma');
+$sortorder = GETPOST('sortorder', 'aZ09comma');
 $page = GETPOSTISSET('pageplusone') ? (GETPOST('pageplusone') - 1) : GETPOST("page", 'int');
 if (empty($page) || $page < 0) {
 	$page = 0;
@@ -74,7 +68,11 @@ $offset = $limit * $page;
 
 // Load sale and categ filters
 $search_sale = GETPOST("search_sale");
-$search_categ = GETPOST("search_categ");
+if (GETPOSTISSET('catid')) {
+	$search_categ = GETPOST('catid', 'int');
+} else {
+	$search_categ = GETPOST('search_categ', 'int');
+}
 
 // Get object canvas (By default, this is not defined, so standard usage of dolibarr)
 $canvas = GETPOST("canvas");
@@ -99,7 +97,12 @@ if (!empty($conf->global->STOCK_CALCULATE_ON_SHIPMENT)
 // Initialize technical object to manage hooks of page. Note that conf->hooks_modules contains array of hook context
 $hookmanager->initHooks(array('productreassortlist'));
 
+if ($user->socid) {
+	$socid = $user->socid;
+}
+$result = restrictedArea($user, 'produit|service', 0, 'product&product');
 
+$object = new Product($db);
 
 /*
  * Actions
@@ -113,11 +116,10 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
 	$tobuy = "";
 	$search_sale = "";
 	$search_categ = "";
-	$type = "";
-	$catid = '';
 	$toolowstock = '';
 	$fourn_id = '';
 	$sbarcode = '';
+	$search_stock_physique = '';
 }
 
 
@@ -140,7 +142,7 @@ if (!empty($conf->global->PRODUCT_USE_UNITS)) {
 }
 // Add fields from hooks
 $parameters = array();
-$reshook = $hookmanager->executeHooks('printFieldListSelect', $parameters); // Note that $action and $object may have been modified by hook
+$reshook = $hookmanager->executeHooks('printFieldListSelect', $parameters, $object); // Note that $action and $object may have been modified by hook
 $sql .= $hookmanager->resPrint;
 $sql .= ' FROM '.MAIN_DB_PREFIX.'product as p';
 $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'product_stock as s ON p.rowid = s.fk_product';
@@ -148,13 +150,22 @@ $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'entrepot as e ON s.fk_entrepot = e.rowid A
 if (!empty($conf->global->PRODUCT_USE_UNITS)) {
 	$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'c_units as u on p.fk_unit = u.rowid';
 }
-// We'll need this table joined to the select in order to filter by categ
-if ($search_categ) {
-	$sql .= ", ".MAIN_DB_PREFIX."categorie_product as cp";
-}
 $sql .= " WHERE p.entity IN (".getEntity('product').")";
-if ($search_categ) {
-	$sql .= " AND p.rowid = cp.fk_product"; // Join for the needed table to filter by categ
+if (!empty($search_categ) && $search_categ != '-1') {
+	$sql .= " AND ";
+	if ($search_categ == -2) {
+		$sql .= " NOT EXISTS ";
+	} else {
+		$sql .= " EXISTS ";
+	}
+	$sql .= "(";
+	$sql .= " SELECT cp.fk_categorie, cp.fk_product";
+	$sql .= " FROM " . MAIN_DB_PREFIX . "categorie_product as cp";
+	$sql .= " WHERE cp.fk_product = p.rowid"; // Join for the needed table to filter by categ
+	if ($search_categ > 0) {
+		$sql .= " AND cp.fk_categorie = " . ((int) $search_categ);
+	}
+	$sql .= ")";
 }
 if ($sall) {
 	$sql .= natural_search(array('p.ref', 'p.label', 'p.description', 'p.note'), $sall);
@@ -177,32 +188,44 @@ if ($snom) {
 	$sql .= natural_search('p.label', $snom);
 }
 if (!empty($tosell)) {
-	$sql .= " AND p.tosell = ".$tosell;
+	$sql .= " AND p.tosell = ".((int) $tosell);
 }
 if (!empty($tobuy)) {
-	$sql .= " AND p.tobuy = ".$tobuy;
+	$sql .= " AND p.tobuy = ".((int) $tobuy);
 }
 if (!empty($canvas)) {
 	$sql .= " AND p.canvas = '".$db->escape($canvas)."'";
 }
-if ($catid) {
-	$sql .= " AND cp.fk_categorie = ".$catid;
-}
 if ($fourn_id > 0) {
-	$sql .= " AND p.rowid = pf.fk_product AND pf.fk_soc = ".$fourn_id;
+	$sql .= " AND p.rowid = pf.fk_product AND pf.fk_soc = ".((int) $fourn_id);
 }
-// Insert categ filter
-if ($search_categ) {
-	$sql .= " AND cp.fk_categorie = ".$db->escape($search_categ);
-}
+// Add where from hooks
+$parameters = array();
+$reshook = $hookmanager->executeHooks('printFieldListWhere', $parameters, $object); // Note that $action and $object may have been modified by hook
+$sql .= $hookmanager->resPrint;
 $sql .= " GROUP BY p.rowid, p.ref, p.label, p.barcode, p.price, p.price_ttc, p.price_base_type, p.entity,";
 $sql .= " p.fk_product_type, p.tms, p.duration, p.tosell, p.tobuy, p.seuil_stock_alerte, p.desiredstock";
 // Add fields from hooks
 $parameters = array();
-$reshook = $hookmanager->executeHooks('printFieldSelect', $parameters); // Note that $action and $object may have been modified by hook
+$reshook = $hookmanager->executeHooks('printFieldSelect', $parameters, $object); // Note that $action and $object may have been modified by hook
 $sql .= $hookmanager->resPrint;
+$sql_having = '';
 if ($toolowstock) {
-	$sql .= " HAVING SUM(".$db->ifsql('s.reel IS NULL', '0', 's.reel').") < p.seuil_stock_alerte";
+	$sql_having .= " HAVING SUM(".$db->ifsql('s.reel IS NULL', '0', 's.reel').") < p.seuil_stock_alerte";
+}
+if ($search_stock_physique != '') {
+	//$natural_search_physique = natural_search('HAVING SUM(' . $db->ifsql('s.reel IS NULL', '0', 's.reel') . ')', $search_stock_physique, 1, 1);
+	$natural_search_physique = natural_search('SUM(' . $db->ifsql('s.reel IS NULL', '0', 's.reel') . ')', $search_stock_physique, 1, 1);
+	$natural_search_physique = " " . substr($natural_search_physique, 1, -1); // remove first "(" and last ")" characters
+	if (!empty($sql_having)) {
+		$sql_having .= " AND";
+	} else {
+		$sql_having .= " HAVING";
+	}
+	$sql_having .= $natural_search_physique;
+}
+if (!empty($sql_having)) {
+	$sql .= $sql_having;
 }
 $sql .= $db->order($sortfield, $sortorder);
 
@@ -255,7 +278,7 @@ if ($resql) {
 	if ($tobuy) {
 		$param .= "&tobuy=".urlencode($tobuy);
 	}
-	if ($type) {
+	if ($type != '') {
 		$param .= "&type=".urlencode($type);
 	}
 	if ($fourn_id) {
@@ -270,7 +293,7 @@ if ($resql) {
 	if ($search_sale) {
 		$param .= "&search_sale=".urlencode($search_sale);
 	}
-	if ($search_categ) {
+	if ($search_categ > 0) {
 		$param .= "&search_categ=".urlencode($search_categ);
 	}
 	if ($toolowstock) {
@@ -279,8 +302,8 @@ if ($resql) {
 	if ($sbarcode) {
 		$param .= "&sbarcode=".urlencode($sbarcode);
 	}
-	if ($catid) {
-		$param .= "&catid=".urlencode($catid);
+	if ($search_stock_physique) {
+		$param .= '&search_stock_physique=' . urlencode($search_stock_physique);
 	}
 
 	llxHeader("", $texte, $helpurl);
@@ -294,10 +317,10 @@ if ($resql) {
 
 	print_barre_liste($texte, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, '', $num, $nbtotalofrecords, 'product', 0, '', '', $limit);
 
-	if (!empty($catid)) {
+	if ($search_categ > 0) {
 		print "<div id='ways'>";
 		$c = new Categorie($db);
-		$c->fetch($catid);
+		$c->fetch($search_categ);
 		$ways = $c->print_all_ways(' &gt; ', 'product/reassort.php');
 		print " &gt; ".$ways[0]."<br>\n";
 		print "</div><br>";
@@ -307,8 +330,8 @@ if ($resql) {
 	$moreforfilter = '';
 	if (!empty($conf->categorie->enabled)) {
 		$moreforfilter .= '<div class="divsearchfield">';
-		$moreforfilter .= $langs->trans('Categories').': ';
-		$moreforfilter .= $htmlother->select_categories(Categorie::TYPE_PRODUCT, $search_categ, 'search_categ');
+		$moreforfilter .= img_picto($langs->trans('Categories'), 'category', 'class="pictofixedwidth"');
+		$moreforfilter .= $htmlother->select_categories(Categorie::TYPE_PRODUCT, $search_categ, 'search_categ', 1);
 		$moreforfilter .= '</div>';
 	}
 
@@ -323,32 +346,6 @@ if ($resql) {
 		$reshook = $hookmanager->executeHooks('printFieldPreListTitle', $parameters); // Note that $action and $object may have been modified by hook
 		print $hookmanager->resPrint;
 		print '</div>';
-	}
-
-	$param = '';
-	if ($tosell) {
-		$param .= "&tosell=".urlencode($tosell);
-	}
-	if ($tobuy) {
-		$param .= "&tobuy=".urlencode($tobuy);
-	}
-	if ($type) {
-		$param .= "&type=".urlencode($type);
-	}
-	if ($fourn_id) {
-		$param .= "&fourn_id=".urlencode($fourn_id);
-	}
-	if ($snom) {
-		$param .= "&snom=".urlencode($snom);
-	}
-	if ($sref) {
-		$param .= "&sref=".urlencode($sref);
-	}
-	if ($toolowstock) {
-		$param .= "&toolowstock=".urlencode($toolowstock);
-	}
-	if ($search_categ) {
-		$param .= "&search_categ=".urlencode($search_categ);
 	}
 
 	$formProduct = new FormProduct($db);
@@ -380,7 +377,10 @@ if ($resql) {
 	// Stock limit
 	print '<td class="liste_titre">&nbsp;</td>';
 	print '<td class="liste_titre right">&nbsp;</td>';
-	print '<td class="liste_titre">&nbsp;</td>';
+	// Physical stock
+	print '<td class="liste_titre right">';
+	print '<input class="flat" type="text" size="5" name="search_stock_physique" value="'.dol_escape_htmltag($search_stock_physique).'">';
+	print '</td>';
 	if ($virtualdiffersfromphysical) {
 		print '<td class="liste_titre">&nbsp;</td>';
 	}
@@ -398,14 +398,14 @@ if ($resql) {
 
 	//Line for column titles
 	print "<tr class=\"liste_titre\">";
-	print_liste_field_titre("Ref", $_SERVER["PHP_SELF"], "p.ref", $param, "", "", $sortfield, $sortorder);
-	print_liste_field_titre("Label", $_SERVER["PHP_SELF"], "p.label", $param, "", "", $sortfield, $sortorder);
+	print_liste_field_titre("Ref", $_SERVER["PHP_SELF"], "p.ref", '', $param, "", $sortfield, $sortorder);
+	print_liste_field_titre("Label", $_SERVER["PHP_SELF"], "p.label", '', $param, "", $sortfield, $sortorder);
 	if (!empty($conf->service->enabled) && $type == 1) {
-		print_liste_field_titre("Duration", $_SERVER["PHP_SELF"], "p.duration", $param, "", '', $sortfield, $sortorder, 'center ');
+		print_liste_field_titre("Duration", $_SERVER["PHP_SELF"], "p.duration", '', $param, "", $sortfield, $sortorder, 'center ');
 	}
-	print_liste_field_titre("StockLimit", $_SERVER["PHP_SELF"], "p.seuil_stock_alerte", $param, "", '', $sortfield, $sortorder, 'right ');
-	print_liste_field_titre("DesiredStock", $_SERVER["PHP_SELF"], "p.desiredstock", $param, "", '', $sortfield, $sortorder, 'right ');
-	print_liste_field_titre("PhysicalStock", $_SERVER["PHP_SELF"], "stock_physique", $param, "", '', $sortfield, $sortorder, 'right ');
+	print_liste_field_titre("StockLimit", $_SERVER["PHP_SELF"], "p.seuil_stock_alerte", '', $param, "", $sortfield, $sortorder, 'right ');
+	print_liste_field_titre("DesiredStock", $_SERVER["PHP_SELF"], "p.desiredstock", '', $param, "", $sortfield, $sortorder, 'right ');
+	print_liste_field_titre("PhysicalStock", $_SERVER["PHP_SELF"], "stock_physique", '', $param, "", $sortfield, $sortorder, 'right ');
 	// Details per warehouse
 	if (!empty($conf->global->STOCK_DETAIL_ON_WAREHOUSE)) {	// TODO This should be moved into the selection of fields on page product/list (page product/stock will be removed and replaced with product/list with its own context)
 		if ($nb_warehouse > 1) {
@@ -415,15 +415,15 @@ if ($resql) {
 		}
 	}
 	if ($virtualdiffersfromphysical) {
-		print_liste_field_titre("VirtualStock", $_SERVER["PHP_SELF"], "", $param, "", '', $sortfield, $sortorder, 'right ', 'VirtualStockDesc');
+		print_liste_field_titre("VirtualStock", $_SERVER["PHP_SELF"], "", '', $param, "", $sortfield, $sortorder, 'right ', 'VirtualStockDesc');
 	}
 	// Units
 	if (!empty($conf->global->PRODUCT_USE_UNITS)) {
-		print_liste_field_titre("Unit", $_SERVER["PHP_SELF"], "unit_short", $param, "", 'align="right"', $sortfield, $sortorder);
+		print_liste_field_titre("Unit", $_SERVER["PHP_SELF"], "unit_short", '', $param, 'align="right"', $sortfield, $sortorder);
 	}
 	print_liste_field_titre('');
-	print_liste_field_titre("ProductStatusOnSell", $_SERVER["PHP_SELF"], "p.tosell", $param, "", '', $sortfield, $sortorder, 'right ');
-	print_liste_field_titre("ProductStatusOnBuy", $_SERVER["PHP_SELF"], "p.tobuy", $param, "", '', $sortfield, $sortorder, 'right ');
+	print_liste_field_titre("ProductStatusOnSell", $_SERVER["PHP_SELF"], "p.tosell", '', $param, "", $sortfield, $sortorder, 'right ');
+	print_liste_field_titre("ProductStatusOnBuy", $_SERVER["PHP_SELF"], "p.tobuy", '', $param, "", $sortfield, $sortorder, 'right ');
 	// Hook fields
 	$parameters = array('param'=>$param, 'sortfield'=>$sortfield, 'sortorder'=>$sortorder);
 	$reshook = $hookmanager->executeHooks('printFieldListTitle', $parameters); // Note that $action and $object may have been modified by hook
@@ -493,12 +493,15 @@ if ($resql) {
 		if (!empty($conf->global->PRODUCT_USE_UNITS)) {
 			print '<td class="left">'.$objp->unit_short.'</td>';
 		}
-		print '<td class="right"><a href="'.DOL_URL_ROOT.'/product/stock/movement_list.php?idproduct='.$product->id.'">'.$langs->trans("Movements").'</a></td>';
+		print '<td class="center">';
+		print img_picto($langs->trans("StockMovement"), 'movement', 'class="pictofixedwidth"');
+		print '<a href="'.DOL_URL_ROOT.'/product/stock/movement_list.php?idproduct='.$product->id.'">'.$langs->trans("Movements").'</a>';
+		print '</td>';
 		print '<td class="right nowrap">'.$product->LibStatut($objp->statut, 5, 0).'</td>';
 		print '<td class="right nowrap">'.$product->LibStatut($objp->tobuy, 5, 1).'</td>';
 		// Fields from hook
 		$parameters = array('obj'=>$objp);
-		$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters); // Note that $action and $object may have been modified by hook
+		$reshook = $hookmanager->executeHooks('printFieldListValue', $parameters, $product); // Note that $action and $object may have been modified by hook
 		print $hookmanager->resPrint;
 		print '<td></td>';
 		print "</tr>\n";

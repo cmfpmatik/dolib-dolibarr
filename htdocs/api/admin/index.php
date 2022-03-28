@@ -38,7 +38,7 @@ if (!$user->admin) {
 
 $action = GETPOST('action', 'aZ09');
 
-//Activate ProfId
+// Activate Production mode
 if ($action == 'setproductionmode') {
 	$status = GETPOST('status', 'alpha');
 
@@ -64,6 +64,18 @@ if ($action == 'setproductionmode') {
 			header("Location: ".$_SERVER["PHP_SELF"]);
 			exit;
 		}
+	} else {
+		dol_print_error($db);
+	}
+}
+
+// Disable compression mode
+if ($action == 'setdisablecomprssion') {
+	$status = GETPOST('status', 'alpha');
+
+	if (dolibarr_set_const($db, 'API_DISABLE_COMPRESSION', $status, 'chaine', 0, '', 0) > 0) {
+		header("Location: ".$_SERVER["PHP_SELF"]);
+		exit;
 	} else {
 		dol_print_error($db);
 	}
@@ -117,6 +129,21 @@ print '<td>&nbsp;</td>';
 print '</tr>';
 
 print '<tr class="oddeven">';
+print '<td>'.$langs->trans("API_DISABLE_COMPRESSION").'</td>';
+$disable_compression = (empty($conf->global->API_DISABLE_COMPRESSION) ?false:true);
+if ($disable_compression) {
+	print '<td><a class="reposition" href="'.$_SERVER['PHP_SELF'].'?action=setdisablecomprssion&token='.newToken().'&value='.($i + 1).'&status=0">';
+	print img_picto($langs->trans("Activated"), 'switch_on');
+	print '</a></td>';
+} else {
+	print '<td><a class="reposition" href="'.$_SERVER['PHP_SELF'].'?action=setdisablecomprssion&token='.newToken().'&value='.($i + 1).'&status=1">';
+	print img_picto($langs->trans("Disabled"), 'switch_off');
+	print '</a></td>';
+}
+print '<td>&nbsp;</td>';
+print '</tr>';
+
+print '<tr class="oddeven">';
 print '<td>'.$langs->trans("RESTRICT_ON_IP");
 print ' '.$langs->trans("Example").': '.$langs->trans("IPListExample");
 print '</td>';
@@ -139,18 +166,25 @@ $urlwithroot = $urlwithouturlroot.DOL_URL_ROOT; // This is to use external domai
 
 // Show message
 $message = '';
-$url = $urlwithroot.'/api/index.php/login?login=<strong>auserlogin</strong>&password=<strong>thepassword</strong>[&reset=1]';
+//$url = $urlwithroot.'/api/index.php/login?login=<strong>auserlogin</strong>&password=<strong>thepassword</strong>[&reset=1]';
+$url = $urlwithroot.'/api/index.php/login?login=auserlogin&password=thepassword[&reset=1]';
 $message .= '<span class="opacitymedium">'.$langs->trans("UrlToGetKeyToUseAPIs").':</span><br>';
-$message .= img_picto('', 'globe').' '.$url;
+$message .= '<div class="urllink soixantepercent">'.img_picto('', 'globe').' <input type="text" class="quatrevingtpercent" id="urltogettoken" value="'.$url.'"></div>';
 print $message;
+print ajax_autoselect("urltogettoken");
 print '<br>';
 print '<br>';
 
 // Explorer
-print '<u>'.$langs->trans("ApiExporerIs").':</u><br>';
+print '<span class="opacitymedium">'.$langs->trans("ApiExporerIs").':</span><br>';
 if (dol_is_dir(DOL_DOCUMENT_ROOT.'/includes/restler/framework/Luracast/Restler/explorer')) {
 	$url = DOL_MAIN_URL_ROOT.'/api/index.php/explorer';
-	print img_picto('', 'globe').' <a href="'.$url.'" target="_blank">'.$url."</a><br>\n";
+	print '<div class="urllink soixantepercent">'.img_picto('', 'globe').' <a href="'.$url.'" target="_blank" rel="noopener noreferrer">'.$url."</a></div><br>\n";
+	print '<div class="opacitymediumxxx"><br><span class="opacitymedium">'.$langs->trans("SwaggerDescriptionFile").':</span><br>';
+	$urlswagger = DOL_MAIN_URL_ROOT.'/api/index.php/explorer/swagger.json?DOLAPIKEY=youruserapikey';
+	//$urlswaggerreal = DOL_MAIN_URL_ROOT.'/api/index.php/explorer/swagger.json?DOLAPIKEY='.$user->api_key;
+	print '<div class="urllink soixantepercent">'.img_picto('', 'globe').' <a href="'.$urlswagger.'" target="_blank" rel="noopener noreferrer">'.$urlswagger."</a></div><br>\n";
+	print '</div>';
 } else {
 	$langs->load("errors");
 	print info_admin($langs->trans("ErrorNotAvailableWithThisDistribution"), 0, 0, 'error');

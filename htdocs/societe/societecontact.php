@@ -40,8 +40,8 @@ $action = GETPOST('action', 'aZ09');
 $massaction = GETPOST('massaction', 'alpha');
 
 $limit = GETPOST('limit', 'int') ?GETPOST('limit', 'int') : $conf->liste_limit;
-$sortfield = GETPOST("sortfield", 'alpha');
-$sortorder = GETPOST("sortorder", 'alpha');
+$sortfield = GETPOST('sortfield', 'aZ09comma');
+$sortorder = GETPOST('sortorder', 'aZ09comma');
 $page = GETPOSTISSET('pageplusone') ? (GETPOST('pageplusone') - 1) : GETPOST("page", 'int');
 if (!$sortorder) {
 	$sortorder = "ASC";
@@ -95,14 +95,14 @@ if ($action == 'addcontact' && $user->rights->societe->creer) {
 } elseif ($action == 'swapstatut' && $user->rights->societe->creer) {
 	// bascule du statut d'un contact
 	if ($object->fetch($id)) {
-		$result = $object->swapContactStatus(GETPOST('ligne'));
+		$result = $object->swapContactStatus(GETPOST('ligne', 'int'));
 	} else {
 		dol_print_error($db);
 	}
 } elseif ($action == 'deletecontact' && $user->rights->societe->creer) {
 	// Efface un contact
 	$object->fetch($id);
-	$result = $object->delete_contact($_GET["lineid"]);
+	$result = $object->delete_contact(GETPOST("lineid", 'int'));
 
 	if ($result >= 0) {
 		header("Location: ".$_SERVER['PHP_SELF']."?id=".$object->id);
@@ -111,13 +111,6 @@ if ($action == 'addcontact' && $user->rights->societe->creer) {
 		dol_print_error($db);
 	}
 }
-/*
-elseif ($action == 'setaddress' && $user->rights->societe->creer)
-{
-	$object->fetch($id);
-	$result=$object->setDeliveryAddress($_POST['fk_address']);
-	if ($result < 0) dol_print_error($db,$object->error);
-}*/
 
 
 /*
@@ -181,7 +174,7 @@ if ($id > 0 || !empty($ref)) {
 			print $object->code_client;
 			$tmpcheck = $object->check_codeclient();
 			if ($tmpcheck != 0 && $tmpcheck != -5) {
-				print ' <font class="error">('.$langs->trans("WrongCustomerCode").')</font>';
+				print ' <span class="error">('.$langs->trans("WrongCustomerCode").')</span>';
 			}
 			print '</td></tr>';
 		}
@@ -192,7 +185,7 @@ if ($id > 0 || !empty($ref)) {
 			print $object->code_fournisseur;
 			$tmpcheck = $object->check_codefournisseur();
 			if ($tmpcheck != 0 && $tmpcheck != -5) {
-				print ' <font class="error">('.$langs->trans("WrongSupplierCode").')</font>';
+				print ' <span class="error">('.$langs->trans("WrongSupplierCode").')</span>';
 			}
 			print '</td></tr>';
 		}
@@ -227,7 +220,7 @@ if ($id > 0 || !empty($ref)) {
 			$sql .= " t.libelle as type, t.subscription";
 			$sql .= " FROM ".MAIN_DB_PREFIX."adherent as d";
 			$sql .= ", ".MAIN_DB_PREFIX."adherent_type as t";
-			$sql .= " WHERE d.fk_soc = ".$id;
+			$sql .= " WHERE d.fk_soc = ".((int) $id);
 			$sql .= " AND d.fk_adherent_type = t.rowid";
 
 			dol_syslog("get list sql=".$sql);
@@ -316,7 +309,7 @@ if ($id > 0 || !empty($ref)) {
 							print '</td>';
 						} else {
 							print '<td class="left nowrap">';
-							if ($objp->subscription == 'yes') {
+							if (!empty($objp->subscription)) {
 								print $langs->trans("SubscriptionNotReceived");
 								if ($objp->statut > 0) {
 									print " ".img_warning();

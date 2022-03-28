@@ -38,8 +38,8 @@ if ($user->socid) {
 $result = restrictedArea($user, 'deplacement', '', '');
 
 $limit = GETPOST('limit', 'int') ? GETPOST('limit', 'int') : $conf->liste_limit;
-$sortfield = GETPOST("sortfield", 'alpha');
-$sortorder = GETPOST("sortorder", 'alpha');
+$sortfield = GETPOST('sortfield', 'aZ09comma');
+$sortorder = GETPOST('sortorder', 'aZ09comma');
 $page = GETPOSTISSET('pageplusone') ? (GETPOST('pageplusone') - 1) : GETPOST("page", 'int');
 if (empty($page) || $page == -1) {
 	$page = 0;
@@ -76,7 +76,7 @@ $sql = "SELECT count(d.rowid) as nb, sum(d.km) as km, d.type";
 $sql .= " FROM ".MAIN_DB_PREFIX."deplacement as d";
 $sql .= " WHERE d.entity = ".$conf->entity;
 if (empty($user->rights->deplacement->readall) && empty($user->rights->deplacement->lire_tous)) {
-	$sql .= ' AND d.fk_user IN ('.join(',', $childids).')';
+	$sql .= ' AND d.fk_user IN ('.$db->sanitize(join(',', $childids)).')';
 }
 $sql .= " GROUP BY d.type";
 $sql .= " ORDER BY d.type";
@@ -141,7 +141,7 @@ print '</table>';
 
 
 
-print '</div><div class="fichetwothirdright"><div class="ficheaddleft">';
+print '</div><div class="fichetwothirdright">';
 
 
 $max = 10;
@@ -150,19 +150,19 @@ $langs->load("boxes");
 
 $sql = "SELECT u.rowid as uid, u.lastname, u.firstname, d.rowid, d.dated as date, d.tms as dm, d.km, d.fk_statut";
 $sql .= " FROM ".MAIN_DB_PREFIX."deplacement as d, ".MAIN_DB_PREFIX."user as u";
-if (!$user->rights->societe->client->voir && !$user->socid) {
+if (empty($user->rights->societe->client->voir) && !$user->socid) {
 	$sql .= ", ".MAIN_DB_PREFIX."societe as s, ".MAIN_DB_PREFIX."societe_commerciaux as sc";
 }
 $sql .= " WHERE u.rowid = d.fk_user";
 $sql .= " AND d.entity = ".$conf->entity;
 if (empty($user->rights->deplacement->readall) && empty($user->rights->deplacement->lire_tous)) {
-	$sql .= ' AND d.fk_user IN ('.join(',', $childids).')';
+	$sql .= ' AND d.fk_user IN ('.$db->sanitize(join(',', $childids)).')';
 }
-if (!$user->rights->societe->client->voir && !$user->socid) {
-	$sql .= " AND d.fk_soc = s. rowid AND s.rowid = sc.fk_soc AND sc.fk_user = ".$user->id;
+if (empty($user->rights->societe->client->voir) && !$user->socid) {
+	$sql .= " AND d.fk_soc = s. rowid AND s.rowid = sc.fk_soc AND sc.fk_user = ".((int) $user->id);
 }
 if ($socid) {
-	$sql .= " AND d.fk_soc = ".$socid;
+	$sql .= " AND d.fk_soc = ".((int) $socid);
 }
 $sql .= $db->order("d.tms", "DESC");
 $sql .= $db->plimit($max, 0);
@@ -212,7 +212,7 @@ if ($result) {
 }
 
 
-print '</div></div></div>';
+print '</div></div>';
 
 // End of page
 llxFooter();

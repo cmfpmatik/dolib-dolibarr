@@ -44,12 +44,6 @@ $ref = GETPOST('ref', 'alpha');
 $action = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'alpha');
 
-// Security check
-if ($user->socid) {
-	$socid = $user->socid;
-}
-$result = restrictedArea($user, 'holiday', $id, 'holiday');
-
 // Get parameters
 $limit = GETPOST('limit', 'int') ? GETPOST('limit', 'int') : $conf->liste_limit;
 $sortfield = GETPOST('sortfield', 'aZ09comma');
@@ -69,11 +63,47 @@ if (!$sortfield) {
 }
 
 
+$childids = $user->getAllChildIds(1);
+
+$morefilter = '';
+if (!empty($conf->global->HOLIDAY_HIDE_FOR_NON_SALARIES)) {
+	$morefilter = 'AND employee = 1';
+}
+
 $object = new Holiday($db);
-$object->fetch($id, $ref);
+
+$extrafields = new ExtraFields($db);
+
+// fetch optionals attributes and labels
+$extrafields->fetch_name_optionals_label($object->table_element);
+
+if (($id > 0) || $ref) {
+	$object->fetch($id, $ref);
+
+	// Check current user can read this leave request
+	$canread = 0;
+	if (!empty($user->rights->holiday->readall)) {
+		$canread = 1;
+	}
+	if (!empty($user->rights->holiday->read) && in_array($object->fk_user, $childids)) {
+		$canread = 1;
+	}
+	if (!$canread) {
+		accessforbidden();
+	}
+}
+
 
 $upload_dir = $conf->holiday->dir_output.'/'.get_exdir(0, 0, 0, 1, $object, '');
 $modulepart = 'holiday';
+
+// Protection if external user
+if ($user->socid) {
+	$socid = $user->socid;
+}
+$result = restrictedArea($user, 'holiday', $object->id, 'holiday');
+
+$permissiontoadd = $user->rights->holiday->write; // Used by the include of actions_setnotes.inc.php
 
 
 /*
@@ -90,8 +120,9 @@ include DOL_DOCUMENT_ROOT.'/core/actions_linkedfiles.inc.php';
 $form = new Form($db);
 
 $listhalfday = array('morning'=>$langs->trans("Morning"), "afternoon"=>$langs->trans("Afternoon"));
+$title = $langs->trans("Leave").' - '.$langs->trans("Files");
 
-llxHeader("", "", $langs->trans("InterventionCard"));
+llxHeader('', $title);
 
 
 if ($object->id) {
@@ -235,7 +266,6 @@ if ($object->id) {
 	/*
 	print '</div>';
 	print '<div class="fichehalfright">';
-	print '<div class="ficheaddleft">';
 
 	print '<div class="underbanner clearboth"></div>';
 
@@ -292,7 +322,6 @@ if ($object->id) {
 	print '</tbody>';
 	print '</table>';
 
-	print '</div>';
 	print '</div>'; */
 	print '</div>';
 
@@ -300,13 +329,13 @@ if ($object->id) {
 
 	print dol_get_fiche_end();
 
-
-
-	$modulepart = 'holiday';
-	$permission = $user->rights->holiday->write;
+	$permissiontoadd = $user->rights->holiday->write;
 	$permtoedit = $user->rights->holiday->write;
 	$param = '&id='.$object->id;
-	include_once DOL_DOCUMENT_ROOT.'/core/tpl/document_actions_post_headers.tpl.php';
+	$relativepathwithnofile = dol_sanitizeFileName($object->ref).'/';
+	$savingdocmask = dol_sanitizeFileName($object->ref).'-__file__';
+
+	include DOL_DOCUMENT_ROOT.'/core/tpl/document_actions_post_headers.tpl.php';
 } else {
 	print $langs->trans("ErrorUnknown");
 }

@@ -46,17 +46,10 @@ $id = GETPOST('id', 'int');
 $action = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'alpha');
 
-// Security check
-if ($user->socid) {
-	$socid = $user->socid;
-}
-$result = restrictedArea($user, 'tax', '', 'vat', 'charges');
-
-
 // Get parameters
 $limit = GETPOST('limit', 'int') ? GETPOST('limit', 'int') : $conf->liste_limit;
-$sortfield = GETPOST("sortfield", 'alpha');
-$sortorder = GETPOST("sortorder", 'alpha');
+$sortfield = GETPOST('sortfield', 'aZ09comma');
+$sortorder = GETPOST('sortorder', 'aZ09comma');
 $page = GETPOSTISSET('pageplusone') ? (GETPOST('pageplusone') - 1) : GETPOST("page", 'int');
 if (empty($page) || $page == -1) {
 	$page = 0;
@@ -71,14 +64,22 @@ if (!$sortfield) {
 	$sortfield = "name";
 }
 
-
 $object = new Tva($db);
+
 if ($id > 0) {
 	$object->fetch($id);
 }
 
 $upload_dir = $conf->tax->dir_output.'/vat/'.dol_sanitizeFileName($object->ref);
 $modulepart = 'tax-vat';
+
+// Security check
+if ($user->socid) {
+	$socid = $user->socid;
+}
+$result = restrictedArea($user, 'tax', '', 'tva', 'charges');
+
+$permissiontoadd = $user->rights->tax->charges->creer;	// Used by the include of actions_dellink.inc.php
 
 
 /*
@@ -87,7 +88,7 @@ $modulepart = 'tax-vat';
 
 include DOL_DOCUMENT_ROOT.'/core/actions_linkedfiles.inc.php';
 
-if ($action == 'setlib' && $user->rights->tax->charges->creer) {
+if ($action == 'setlib' && $permissiontoadd) {
 	$object->fetch($id);
 	$result = $object->setValueFrom('label', GETPOST('lib', 'alpha'), '', '', 'text', '', $user, 'TAX_MODIFY');
 	if ($result < 0) {
@@ -151,10 +152,10 @@ if ($object->id) {
 
 	print dol_get_fiche_end();
 
-	$permission = $user->rights->tax->charges->creer;
-	$permtoedit = $user->rights->fournisseur->facture->creer;
+	$permissiontoadd = $user->rights->tax->charges->creer;
+	$permtoedit = $user->rights->tax->charges->creer;
 	$param = '&id='.$object->id;
-	include_once DOL_DOCUMENT_ROOT.'/core/tpl/document_actions_post_headers.tpl.php';
+	include DOL_DOCUMENT_ROOT.'/core/tpl/document_actions_post_headers.tpl.php';
 } else {
 	print $langs->trans("ErrorUnknown");
 }

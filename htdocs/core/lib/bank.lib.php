@@ -4,6 +4,7 @@
  * Copyright (C) 2015		Alexandre Spangaro	<aspangaro@open-dsi.fr>
  * Copyright (C) 2016		Juanjo Menent   	<jmenent@2byte.es>
  * Copyright (C) 2019	   Nicolas ZABOURI     <info@inovea-conseil.com>
+ * Copyright (C) 2021		Ferran Marcet		<fmarcet@2byte.es>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,13 +67,13 @@ function bank_prepare_head(Account $object)
 	$head[$h][2] = 'graph';
 	$h++;
 
-	if ($object->courant != Account::TYPE_CASH) {
+	if ($object->courant != Account::TYPE_CASH || !empty($conf->global->BANK_CAN_RECONCILIATE_CASHACCOUNT)) {
 		$nbReceipts = 0;
 
 		// List of all standing receipts
 		$sql = "SELECT COUNT(DISTINCT(b.num_releve)) as nb";
 		$sql .= " FROM ".MAIN_DB_PREFIX."bank as b";
-		$sql .= " WHERE b.fk_account = ".$object->id;
+		$sql .= " WHERE b.fk_account = ".((int) $object->id);
 
 		$resql = $db->query($sql);
 		if ($resql) {
@@ -83,7 +84,7 @@ function bank_prepare_head(Account $object)
 			$db->free($resql);
 		}
 
-		$head[$h][0] = DOL_URL_ROOT."/compta/bank/releve.php?account=".$object->id;
+		$head[$h][0] = DOL_URL_ROOT."/compta/bank/releve.php?account=".((int) $object->id);
 		$head[$h][1] = $langs->trans("AccountStatements");
 		if (($nbReceipts) > 0) {
 			$head[$h][1] .= '<span class="badge marginleftonlyshort">'.($nbReceipts).'</span>';
@@ -276,7 +277,9 @@ function checkIbanForAccount($account)
 {
 	require_once DOL_DOCUMENT_ROOT.'/includes/php-iban/oophp-iban.php';
 
-	$iban = new IBAN($account->iban);
+	$ibantocheck = ($account->iban ? $account->iban : $account->iban_prefix);		// iban or iban_prefix for backward compatibility
+
+	$iban = new IBAN($ibantocheck);
 	$check = $iban->Verify();
 
 	if ($check) {

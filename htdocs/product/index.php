@@ -34,20 +34,11 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/product/dynamic_price/class/price_parser.class.php';
 
 $type = GETPOST("type", 'int');
-if ($type == '' && !$user->rights->produit->lire) {
+if ($type == '' && empty($user->rights->produit->lire)) {
 	$type = '1'; // Force global page on service page only
 }
-if ($type == '' && !$user->rights->service->lire) {
+if ($type == '' && empty($user->rights->service->lire)) {
 	$type = '0'; // Force global page on product page only
-}
-
-// Security check
-if ($type == '0') {
-	$result = restrictedArea($user, 'produit');
-} elseif ($type == '1') {
-	$result = restrictedArea($user, 'service');
-} else {
-	$result = restrictedArea($user, 'produit|service|expedition');
 }
 
 // Load translation files required by the page
@@ -57,6 +48,15 @@ $langs->loadLangs(array('products', 'stocks'));
 $hookmanager->initHooks(array('productindex'));
 
 $product_static = new Product($db);
+
+// Security check
+if ($type == '0') {
+	$result = restrictedArea($user, 'produit');
+} elseif ($type == '1') {
+	$result = restrictedArea($user, 'service');
+} else {
+	$result = restrictedArea($user, 'produit|service|expedition');
+}
 
 
 /*
@@ -88,7 +88,7 @@ print load_fiche_titre($transAreaType, $linkback, 'product');
 print '<div class="fichecenter"><div class="fichethirdleft">';
 
 
-if (!empty($conf->global->MAIN_SEARCH_FORM_ON_HOME_AREAS)) {     // This is useless due to the global search combo
+if (!empty($conf->global->MAIN_SEARCH_FORM_ON_HOME_AREAS)) {     // This may be useless due to the global search combo
 	// Search contract
 	if ((!empty($conf->product->enabled) || !empty($conf->service->enabled)) && ($user->rights->produit->lire || $user->rights->service->lire)) {
 		$listofsearchfields['search_product'] = array('text'=>'ProductOrService');
@@ -105,7 +105,8 @@ if (!empty($conf->global->MAIN_SEARCH_FORM_ON_HOME_AREAS)) {     // This is usel
 				print '<tr class="liste_titre"><td colspan="3">'.$langs->trans("Search").'</td></tr>';
 			}
 			print '<tr class="oddeven">';
-			print '<td class="nowrap"><label for="'.$key.'">'.$langs->trans($value["text"]).'</label></td><td><input type="text" class="flat inputsearch" name="'.$key.'" id="'.$key.'" size="18"></td>';
+			print '<td class="nowrap"><label for="'.$key.'">'.$langs->trans($value["text"]).'</label></td>';
+			print '<td><input type="text" class="flat inputsearch" name="'.$key.'" id="'.$key.'" size="18"></td>';
 			if ($i == 0) {
 				print '<td rowspan="'.count($listofsearchfields).'"><input type="submit" value="'.$langs->trans("Search").'" class="button"></td>';
 			}
@@ -125,14 +126,20 @@ if (!empty($conf->global->MAIN_SEARCH_FORM_ON_HOME_AREAS)) {     // This is usel
 if ((!empty($conf->product->enabled) || !empty($conf->service->enabled)) && ($user->rights->produit->lire || $user->rights->service->lire)) {
 	$prodser = array();
 	$prodser[0][0] = $prodser[0][1] = $prodser[0][2] = $prodser[0][3] = 0;
+	$prodser[0]['sell'] = 0;
+	$prodser[0]['buy'] = 0;
+	$prodser[0]['none'] = 0;
 	$prodser[1][0] = $prodser[1][1] = $prodser[1][2] = $prodser[1][3] = 0;
+	$prodser[1]['sell'] = 0;
+	$prodser[1]['buy'] = 0;
+	$prodser[1]['none'] = 0;
 
 	$sql = "SELECT COUNT(p.rowid) as total, p.fk_product_type, p.tosell, p.tobuy";
 	$sql .= " FROM ".MAIN_DB_PREFIX."product as p";
 	$sql .= ' WHERE p.entity IN ('.getEntity($product_static->element, 1).')';
 	// Add where from hooks
 	$parameters = array();
-	$reshook = $hookmanager->executeHooks('printFieldListWhere', $parameters); // Note that $action and $object may have been modified by hook
+	$reshook = $hookmanager->executeHooks('printFieldListWhere', $parameters, $product_static); // Note that $action and $object may have been modified by hook
 	$sql .= $hookmanager->resPrint;
 	$sql .= " GROUP BY p.fk_product_type, p.tosell, p.tobuy";
 	$result = $db->query($sql);
@@ -218,6 +225,7 @@ if (!empty($conf->categorie->enabled) && !empty($conf->global->CATEGORY_GRAPHSTA
 	$sql .= " WHERE c.type = 0";
 	$sql .= " AND c.entity IN (".getEntity('category').")";
 	$sql .= " GROUP BY c.label";
+	$sql .= " ORDER BY nb desc";
 	$total = 0;
 	$result = $db->query($sql);
 	if ($result) {
@@ -267,7 +275,7 @@ if (!empty($conf->categorie->enabled) && !empty($conf->global->CATEGORY_GRAPHSTA
 	print '</table>';
 	print '</div>';
 }
-print '</div><div class="fichetwothirdright"><div class="ficheaddleft">';
+print '</div><div class="fichetwothirdright">';
 
 
 /*
@@ -281,11 +289,11 @@ if ((!empty($conf->product->enabled) || !empty($conf->service->enabled)) && ($us
 	$sql .= " FROM ".MAIN_DB_PREFIX."product as p";
 	$sql .= " WHERE p.entity IN (".getEntity($product_static->element, 1).")";
 	if ($type != '') {
-		$sql .= " AND p.fk_product_type = ".$type;
+		$sql .= " AND p.fk_product_type = ".((int) $type);
 	}
 	// Add where from hooks
 	$parameters = array();
-	$reshook = $hookmanager->executeHooks('printFieldListWhere', $parameters); // Note that $action and $object may have been modified by hook
+	$reshook = $hookmanager->executeHooks('printFieldListWhere', $parameters, $product_static); // Note that $action and $object may have been modified by hook
 	$sql .= $hookmanager->resPrint;
 	$sql .= $db->order("p.tms", "DESC");
 	$sql .= $db->plimit($max, 0);
@@ -330,12 +338,12 @@ if ((!empty($conf->product->enabled) || !empty($conf->service->enabled)) && ($us
 				$product_static->status_buy = $objp->tobuy;
 				$product_static->status_batch = $objp->tobatch;
 
-				//Multilangs
+				// Multilangs
 				if (!empty($conf->global->MAIN_MULTILANGS)) {
 					$sql = "SELECT label";
 					$sql .= " FROM ".MAIN_DB_PREFIX."product_lang";
-					$sql .= " WHERE fk_product=".$objp->rowid;
-					$sql .= " AND lang='".$db->escape($langs->getDefaultLang())."'";
+					$sql .= " WHERE fk_product = ".((int) $objp->rowid);
+					$sql .= " AND lang = '".$db->escape($langs->getDefaultLang())."'";
 
 					$resultd = $db->query($sql);
 					if ($resultd) {
@@ -348,10 +356,10 @@ if ((!empty($conf->product->enabled) || !empty($conf->service->enabled)) && ($us
 
 
 				print '<tr class="oddeven">';
-				print '<td class="nowrap">';
+				print '<td class="nowraponall tdoverflowmax100">';
 				print $product_static->getNomUrl(1, '', 16);
 				print "</td>\n";
-				print '<td>'.dol_trunc($objp->label, 32).'</td>';
+				print '<td class="tdoverflowmax200" title="'.dol_escape_htmltag($objp->label).'">'.dol_escape_htmltag($objp->label).'</td>';
 				print "<td>";
 				print dol_print_date($db->jdate($objp->datem), 'day');
 				print "</td>";
@@ -366,7 +374,7 @@ if ((!empty($conf->product->enabled) || !empty($conf->service->enabled)) && ($us
 							$objp->price = $price_result;
 						}
 					}
-					print '<td class="nowrap right">';
+					print '<td class="nowraponall amount right">';
 					if (isset($objp->price_base_type) && $objp->price_base_type == 'TTC') {
 						print price($objp->price_ttc).' '.$langs->trans("TTC");
 					} else {
@@ -409,10 +417,10 @@ if (!empty($conf->global->MAIN_SHOW_PRODUCT_ACTIVITY_TRIM)) {
 }
 
 
-print '</div></div></div>';
+print '</div></div>';
 
 $parameters = array('type' => $type, 'user' => $user);
-$reshook = $hookmanager->executeHooks('dashboardProductsServices', $parameters, $object); // Note that $action and $object may have been modified by hook
+$reshook = $hookmanager->executeHooks('dashboardProductsServices', $parameters, $product_static); // Note that $action and $object may have been modified by hook
 
 // End of page
 llxFooter();
@@ -439,8 +447,8 @@ function activitytrim($product_type)
 	$sql .= " WHERE f.entity IN (".getEntity('invoice').")";
 	$sql .= " AND f.rowid = fd.fk_facture";
 	$sql .= " AND pf.fk_facture = f.rowid";
-	$sql .= " AND pf.fk_paiement= p.rowid";
-	$sql .= " AND fd.product_type=".$product_type;
+	$sql .= " AND pf.fk_paiement = p.rowid";
+	$sql .= " AND fd.product_type = ".((int) $product_type);
 	$sql .= " AND p.datep >= '".$db->idate(dol_get_first_day($yearofbegindate), 1)."'";
 	$sql .= " GROUP BY annee, mois ";
 	$sql .= " ORDER BY annee, mois ";

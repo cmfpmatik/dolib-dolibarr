@@ -16,7 +16,7 @@
  */
 
 /**
- *      \file       htdocs/recruitement/admin/jobposition_extrafields.php
+ *      \file       htdocs/recruitment/admin/jobposition_extrafields.php
  *		\ingroup    recruitment
  *		\brief      Page to setup extra fields of Candidature
  */
@@ -26,7 +26,7 @@ require_once DOL_DOCUMENT_ROOT.'/recruitment/lib/recruitment.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 
 // Load translation files required by the page
-$langs->loadLangs(array('recruitement', 'admin'));
+$langs->loadLangs(array('recruitment', 'admin'));
 
 $extrafields = new ExtraFields($db);
 $form = new Form($db);

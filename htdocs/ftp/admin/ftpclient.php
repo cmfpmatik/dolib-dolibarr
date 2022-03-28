@@ -58,8 +58,8 @@ if ($result) {
 }
 
 if ($action == 'add' || GETPOST('modify', 'alpha')) {
-	$ftp_name = "FTP_NAME_".$entry; // $_POST["numero_entry"];
-	$ftp_server = "FTP_SERVER_".$entry; //$_POST["numero_entry"];
+	$ftp_name = "FTP_NAME_".$entry;
+	$ftp_server = "FTP_SERVER_".$entry;
 
 	$error = 0;
 
@@ -148,7 +148,10 @@ if (GETPOST('delete', 'alpha')) {
 
 $form = new Form($db);
 
-llxHeader();
+
+$help_url = 'EN:Module_FTP_En|FR:Module_FTP|ES:Módulo_FTP';
+
+llxHeader('', 'FTP', $help_url);
 
 $linkback = '<a href="'.DOL_URL_ROOT.'/admin/modules.php?restore_lastsearch_values=1">'.$langs->trans("BackToModuleList").'</a>';
 print load_fiche_titre($langs->trans("FTPClientSetup"), $linkback, 'title_setup');
@@ -187,20 +190,20 @@ if (!function_exists('ftp_connect')) {
 
 	print '<tr class="impair">';
 	print '<td>'.$langs->trans("User").'</td>';
-	print '<td><input type="text" name="FTP_USER_'.($lastftpentry + 1).'" value="'.GETPOST("FTP_USER_".($lastftpentry + 1)).'" size="24"></td>';
+	print '<td><input type="text" name="FTP_USER_'.($lastftpentry + 1).'" value="'.GETPOST("FTP_USER_".($lastftpentry + 1)).'" class="minwidth175"></td>';
 	print '<td>myftplogin</td>';
 	print '</tr>';
 
 	print '<tr class="pair">';
 	print '<td>'.$langs->trans("Password").'</td>';
-	print '<td><input type="password" name="FTP_PASSWORD_'.($lastftpentry + 1).'" value="'.GETPOST("FTP_PASSWORD_".($lastftpentry + 1)).'" size="24"></td>';
+	print '<td><input type="password" name="FTP_PASSWORD_'.($lastftpentry + 1).'" value="'.GETPOST("FTP_PASSWORD_".($lastftpentry + 1)).'" class="minwidth175"></td>';
 	print '<td>myftppassword</td>';
 	print '</tr>';
 
 	print '<tr class="impair">';
 	print '<td>'.$langs->trans("FTPPassiveMode").'</td>';
 	$defaultpassive = GETPOST("FTP_PASSIVE_".($lastftpentry + 1));
-	if (!isset($_POST["FTP_PASSIVE_".($lastftpentry + 1)])) {
+	if (!GETPOSTISSET("FTP_PASSIVE_".($lastftpentry + 1))) {
 		$defaultpassive = empty($conf->global->FTP_SUGGEST_PASSIVE_BYDEFAULT) ? 0 : 1;
 	}
 	print '<td>'.$form->selectyesno('FTP_PASSIVE_'.($lastftpentry + 1), $defaultpassive, 2).'</td>';
@@ -234,6 +237,7 @@ if (!function_exists('ftp_connect')) {
 		while ($i < $num) {
 			$obj = $db->fetch_object($resql);
 
+			$reg = array();
 			preg_match('/([0-9]+)$/i', $obj->name, $reg);
 			$idrss = $reg[0];
 			//print "x".join(',',$reg)."=".$obj->name."=".$idrss;

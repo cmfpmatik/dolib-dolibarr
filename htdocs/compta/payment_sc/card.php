@@ -170,7 +170,7 @@ $sql = 'SELECT f.rowid as scid, f.libelle as label, f.paye, f.amount as sc_amoun
 $sql .= ' FROM '.MAIN_DB_PREFIX.'paiementcharge as pf,'.MAIN_DB_PREFIX.'chargesociales as f, '.MAIN_DB_PREFIX.'c_chargesociales as pc';
 $sql .= ' WHERE pf.fk_charge = f.rowid AND f.fk_type = pc.id';
 $sql .= ' AND f.entity = '.$conf->entity;
-$sql .= ' AND pf.rowid = '.$object->id;
+$sql .= ' AND pf.rowid = '.((int) $object->id);
 
 dol_syslog("compta/payment_sc/card.php", LOG_DEBUG);
 $resql = $db->query($sql);
@@ -207,11 +207,11 @@ if ($resql) {
 			// Label
 			print '<td>'.$objp->label.'</td>';
 			// Expected to pay
-			print '<td class="right">'.price($objp->sc_amount).'</td>';
+			print '<td class="right"><span class="amount">'.price($objp->sc_amount).'</span></td>';
 			// Status
 			print '<td class="center">'.$socialcontrib->getLibStatut(4, $objp->amount).'</td>';
 			// Amount paid
-			print '<td class="right">'.price($objp->amount).'</td>';
+			print '<td class="right"><span class="amount">'.price($objp->amount).'</span></td>';
 			print "</tr>\n";
 			if ($objp->paye == 1) {	// If at least one invoice is paid, disable delete
 				$disable_delete = 1;
@@ -242,7 +242,7 @@ if (! empty($conf->global->BILL_ADD_PAYMENT_VALIDATION))
 	{
 		if ($user->rights->facture->paiement)
 		{
-			print '<a class="butAction" href="card.php?id='.$_GET['id'].'&amp;facid='.$objp->facid.'&amp;action=valide">'.$langs->trans('Valid').'</a>';
+			print '<a class="butAction" href="card.php?id='.GETPOST('id', 'int').'&amp;facid='.$objp->facid.'&amp;action=valide">'.$langs->trans('Valid').'</a>';
 		}
 	}
 }
@@ -251,7 +251,7 @@ if (! empty($conf->global->BILL_ADD_PAYMENT_VALIDATION))
 if ($action == '') {
 	if ($user->rights->tax->charges->supprimer) {
 		if (!$disable_delete) {
-			print '<a class="butActionDelete" href="'.$_SERVER["PHP_SELF"].'?id='.GETPOST('id', 'int').'&amp;action=delete&amp;token='.newToken().'">'.$langs->trans('Delete').'</a>';
+			print '<a class="butActionDelete" href="'.$_SERVER["PHP_SELF"].'?id='.GETPOST('id', 'int').'&action=delete&token='.newToken().'">'.$langs->trans('Delete').'</a>';
 		} else {
 			print '<a class="butActionRefused classfortooltip" href="#" title="'.dol_escape_htmltag($langs->trans("CantRemovePaymentWithOneInvoicePaid")).'">'.$langs->trans('Delete').'</a>';
 		}

@@ -33,9 +33,11 @@ if (!$user->admin || empty($conf->modulebuilder->enabled)) {
 $action = GETPOST('action', 'aZ09');
 $backtopage = GETPOST('backtopage', 'alpha');
 
+
 /*
  * Actions
  */
+
 if ($action == "update") {
 	$res1 = dolibarr_set_const($db, 'MODULEBUILDER_SPECIFIC_README', GETPOST('MODULEBUILDER_SPECIFIC_README', 'restricthtml'), 'chaine', 0, '', $conf->entity);
 	$res2 = dolibarr_set_const($db, 'MODULEBUILDER_ASCIIDOCTOR', GETPOST('MODULEBUILDER_ASCIIDOCTOR', 'nohtml'), 'chaine', 0, '', $conf->entity);
@@ -118,14 +120,14 @@ if ($conf->global->MAIN_FEATURES_LEVEL >= 2) {
 
 	print '<tr class="oddeven">';
 	print '<td>'.$langs->trans("UseAboutPage").'</td>';
-	print '<td class="center">';
+	print '<td>';
 	if ($conf->use_javascript_ajax) {
 		print ajax_constantonoff('MODULEBUILDER_USE_ABOUT');
 	} else {
 		if (empty($conf->global->MODULEBUILDER_USE_ABOUT)) {
-			print '<a class="reposition" href="'.$_SERVER['PHP_SELF'].'?action=set_MODULEBUILDER_USE_ABOUT&amp;token='.newToken().'">'.img_picto($langs->trans("Disabled"), 'off').'</a>';
+			print '<a class="reposition" href="'.$_SERVER['PHP_SELF'].'?action=set_MODULEBUILDER_USE_ABOUT&token='.newToken().'">'.img_picto($langs->trans("Disabled"), 'off').'</a>';
 		} else {
-			print '<a class="reposition" href="'.$_SERVER['PHP_SELF'].'?action=del_MODULEBUILDER_USE_ABOUT&amp;token='.newToken().'">'.img_picto($langs->trans("Enabled"), 'on').'</a>';
+			print '<a class="reposition" href="'.$_SERVER['PHP_SELF'].'?action=del_MODULEBUILDER_USE_ABOUT&token='.newToken().'">'.img_picto($langs->trans("Enabled"), 'on').'</a>';
 		}
 	}
 	print '</td></tr>';
@@ -191,7 +193,7 @@ print '</tr>';
 
 print '</table>';
 
-print '<center><input type="submit" class="button button-save" value="'.$langs->trans("Save").'" name="Button"></center>';
+print $form->buttonsSaveCancel("Save", '');
 
 if (GETPOST('withtab', 'alpha')) {
 	print dol_get_fiche_end();

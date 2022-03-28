@@ -16,7 +16,7 @@
  */
 
 /**
- * \file    eventorganization/lib/eventorganization.lib.php
+ * \file    htdocs/core/lib/eventorganization.lib.php
  * \ingroup eventorganization
  * \brief   Library files with common functions for EventOrganization
  */
@@ -44,6 +44,11 @@ function eventorganizationAdminPrepareHead()
 	$head[$h][0] = DOL_URL_ROOT.'/admin/eventorganization_confbooth_extrafields.php';
 	$head[$h][1] = $langs->trans("ExtraFields")." (".$langs->trans("EventOrganizationConfOrBooth").")";
 	$head[$h][2] = 'eventorganization_extrafields';
+	$h++;
+
+	$head[$h][0] = DOL_URL_ROOT.'/admin/eventorganization_confboothattendee_extrafields.php';
+	$head[$h][1] = $langs->trans("ExtraFields")." (".$langs->trans("Attendees").")";
+	$head[$h][2] = 'conferenceorboothattendee_extrafields';
 	$h++;
 
 	// Show more tabs from modules

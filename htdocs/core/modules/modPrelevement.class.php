@@ -23,7 +23,7 @@
  *	\brief      	Module to manage Direct debit orders
  *	\file       	htdocs/core/modules/modPrelevement.class.php
  *	\ingroup    	prelevement
- *	\brief      	File to describe and enable the module Prelevement
+ *	\brief      	Description and activation file for the module Prelevement
  */
 
 include_once DOL_DOCUMENT_ROOT.'/core/modules/DolibarrModules.class.php';
@@ -145,8 +145,8 @@ class modPrelevement extends DolibarrModules
 		$this->remove($options);
 
 		$sql = array(
-			"DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE nom = '".$this->db->escape($this->const[0][2])."' AND type = 'bankaccount' AND entity = ".$conf->entity,
-			"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('".$this->db->escape($this->const[0][2])."','bankaccount',".$conf->entity.")",
+			"DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE nom = '".$this->db->escape($this->const[0][2])."' AND type = 'bankaccount' AND entity = ".((int) $conf->entity),
+			"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('".$this->db->escape($this->const[0][2])."','bankaccount',".((int) $conf->entity).")",
 		);
 
 		return $this->_init($sql, $options);

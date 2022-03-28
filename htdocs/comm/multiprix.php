@@ -30,6 +30,9 @@ require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
 // Load translation files required by the page
 $langs->loadLangs(array('orders', 'companies'));
 
+$action = GETPOST('action', 'alpha');
+$cancel = GETPOST('cancel', 'alpha');
+
 $id = GETPOST('id', 'int');
 $_socid = GETPOST("id", 'int');
 // Security check
@@ -37,15 +40,23 @@ if ($user->socid > 0) {
 	$_socid = $user->socid;
 }
 
+// Security check
+$socid = GETPOST("socid", 'int');
+if ($user->socid > 0) {
+	$action = '';
+	$id = $user->socid;
+}
+$result = restrictedArea($user, 'societe', $id, '&societe', '', 'fk_soc', 'rowid', 0);
+
 
 /*
  * Actions
  */
 
-if ($_POST["action"] == 'setpricelevel') {
+if ($action == 'setpricelevel' && $user->rights->societe->creer) {
 	$soc = new Societe($db);
 	$soc->fetch($id);
-	$soc->set_price_level($_POST["price_level"], $user);
+	$soc->setPriceLevel(GETPOST("price_level"), $user);
 
 	header("Location: multiprix.php?id=".$id);
 	exit;
@@ -110,7 +121,7 @@ if ($_socid > 0) {
 
 	print dol_get_fiche_end();
 
-	print '<div align="center"><input type="submit" class="button button-save" value="'.$langs->trans("Save").'"></div>';
+	print $form->buttonsSaveCancel("Save", '');
 
 	print "</form>";
 
@@ -123,7 +134,7 @@ if ($_socid > 0) {
 	 */
 	$sql  = "SELECT rc.rowid,rc.price_level, rc.datec as dc, u.rowid as uid, u.login";
 	$sql .= " FROM ".MAIN_DB_PREFIX."societe_prices as rc, ".MAIN_DB_PREFIX."user as u";
-	$sql .= " WHERE rc.fk_soc =".$objsoc->id;
+	$sql .= " WHERE rc.fk_soc = ".((int) $objsoc->id);
 	$sql .= " AND u.rowid = rc.fk_user_author";
 	$sql .= " ORDER BY rc.datec DESC";
 

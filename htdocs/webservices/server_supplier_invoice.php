@@ -324,7 +324,6 @@ function getSupplierInvoice($authentication, $id = '', $ref = '', $ref_ext = '')
  * @param	array		$authentication		Array of authentication information
  * @param	int			$idthirdparty		Id thirdparty
  * @return	array							Array result
- *
  */
 function getSupplierInvoicesForThirdParty($authentication, $idthirdparty)
 {
@@ -351,15 +350,11 @@ function getSupplierInvoicesForThirdParty($authentication, $idthirdparty)
 	if (!$error) {
 		$linesinvoice = array();
 
-		$sql .= 'SELECT f.rowid as facid';
-		$sql .= ' FROM '.MAIN_DB_PREFIX.'facture_fourn as f';
-		//$sql.=', '.MAIN_DB_PREFIX.'societe as s';
-		//$sql.= ' LEFT JOIN '.MAIN_DB_PREFIX.'product as p ON pt.fk_product = p.rowid';
-		//$sql.=" WHERE f.fk_soc = s.rowid AND nom = '".$db->escape($idthirdparty)."'";
-		//$sql.=" WHERE f.fk_soc = s.rowid AND nom = '".$db->escape($idthirdparty)."'";
-		$sql .= " WHERE f.entity = ".$conf->entity;
+		$sql = "SELECT f.rowid as facid";
+		$sql .= " FROM ".MAIN_DB_PREFIX."facture_fourn as f";
+		$sql .= " WHERE f.entity = ".((int) $conf->entity);
 		if ($idthirdparty != 'all') {
-			$sql .= " AND f.fk_soc = ".$db->escape($idthirdparty);
+			$sql .= " AND f.fk_soc = ".((int) $idthirdparty);
 		}
 
 		$resql = $db->query($sql);

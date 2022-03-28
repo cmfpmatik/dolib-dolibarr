@@ -99,14 +99,13 @@ if ($action == 'update' && $user->rights->categorie->creer) {
 	$object->visible        = $visible;
 	$object->fk_parent = $parent != -1 ? $parent : 0;
 
-
 	if (empty($object->label)) {
 		$error++;
 		$action = 'edit';
 		setEventMessages($langs->trans("ErrorFieldRequired", $langs->transnoentities("Label")), null, 'errors');
 	}
 	if (!$error && empty($object->error)) {
-		$ret = $extrafields->setOptionalsFromPost(null, $object);
+		$ret = $extrafields->setOptionalsFromPost(null, $object, '@GETPOSTISSET');
 		if ($ret < 0) {
 			$error++;
 		}
@@ -179,7 +178,9 @@ print '</td></tr>';
 
 // Parent category
 print '<tr><td>'.$langs->trans("In").'</td><td>';
+print img_picto('', 'category', 'class="pictofixedwidth"');
 print $form->select_all_categories($type, $object->fk_parent, 'parent', 64, $object->id);
+print ajax_combobox('parent');
 print '</td></tr>';
 
 $parameters = array();

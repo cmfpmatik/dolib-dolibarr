@@ -21,7 +21,7 @@
  *
  *  \file       htdocs/core/modules/modDav.class.php
  *  \ingroup    dav
- *  \brief      Description and activation file for module dav
+ *  \brief      Description and activation file for the module dav
  */
 include_once DOL_DOCUMENT_ROOT.'/core/modules/DolibarrModules.class.php';
 
@@ -266,8 +266,6 @@ class modDav extends DolibarrModules
 	 */
 	public function init($options = '')
 	{
-		//$this->_load_tables('/dav/sql/');
-
 		// Create extrafields
 		include_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 		$extrafields = new ExtraFields($this->db);

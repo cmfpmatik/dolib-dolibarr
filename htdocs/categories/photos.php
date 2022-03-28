@@ -66,7 +66,7 @@ $upload_dir = $conf->categorie->multidir_output[$object->entity];
  * Actions
  */
 
-if (isset($_FILES['userfile']) && $_FILES['userfile']['size'] > 0 && $_POST["sendit"] && !empty($conf->global->MAIN_UPLOAD_DOC)) {
+if (isset($_FILES['userfile']) && $_FILES['userfile']['size'] > 0 && GETPOST("sendit") && !empty($conf->global->MAIN_UPLOAD_DOC)) {
 	if ($object->id) {
 		$file = $_FILES['userfile'];
 		if (is_array($file['name']) && count($file['name']) > 0) {
@@ -108,7 +108,8 @@ if ($object->id) {
 	$head = categories_prepare_head($object, $type);
 	print dol_get_fiche_head($head, 'photos', $langs->trans($title), -1, 'category');
 
-	$linkback = '<a href="'.DOL_URL_ROOT.'/categories/index.php?leftmenu=cat&type='.$type.'">'.$langs->trans("BackToList").'</a>';
+	$backtolist = (GETPOST('backtolist') ? GETPOST('backtolist') : DOL_URL_ROOT.'/categories/index.php?leftmenu=cat&type='.urlencode($type));
+	$linkback = '<a href="'.dol_sanitizeUrl($backtolist).'">'.$langs->trans("BackToList").'</a>';
 	$object->next_prev_filter = ' type = '.$object->type;
 	$object->ref = $object->label;
 	$morehtmlref = '<br><div class="refidno"><a href="'.DOL_URL_ROOT.'/categories/index.php?leftmenu=cat&type='.$type.'">'.$langs->trans("Root").'</a> >> ';
@@ -152,12 +153,9 @@ if ($object->id) {
 
 
 
-	/* ************************************************************************** */
-	/*                                                                            */
-	/* Barre d'action                                                             */
-	/*                                                                            */
-	/* ************************************************************************** */
-
+	/*
+	 * Action bar
+	 */
 	print '<div class="tabsAction">'."\n";
 
 	if ($action != 'ajout_photo' && $user->rights->categorie->creer) {
@@ -196,19 +194,19 @@ if ($object->id) {
 
 		if (is_array($listofphoto) && count($listofphoto)) {
 			print '<br>';
-			print '<table width="100%" valign="top" align="center">';
+			print '<table width="100%" valign="top" class="center centpercent">';
 
 			foreach ($listofphoto as $key => $obj) {
 				$nbphoto++;
 
 				if ($nbbyrow && ($nbphoto % $nbbyrow == 1)) {
-					print '<tr align=center valign=middle border=1>';
+					print '<tr class"center valignmiddle" border="1">';
 				}
 				if ($nbbyrow) {
 					print '<td width="'.ceil(100 / $nbbyrow).'%" class="photo">';
 				}
 
-				print '<a href="'.DOL_URL_ROOT.'/viewimage.php?modulepart=category&entity='.$object->entity.'&file='.urlencode($pdir.$obj['photo']).'" alt="Taille origine" target="_blank">';
+				print '<a href="'.DOL_URL_ROOT.'/viewimage.php?modulepart=category&entity='.$object->entity.'&file='.urlencode($pdir.$obj['photo']).'" alt="Original size" target="_blank" rel="noopener noreferrer">';
 
 				// Si fichier vignette disponible, on l'utilise, sinon on utilise photo origine
 				if ($obj['photo_vignette']) {
@@ -233,10 +231,10 @@ if ($object->id) {
 
 				// On propose la generation de la vignette si elle n'existe pas et si la taille est superieure aux limites
 				if (!$obj['photo_vignette'] && preg_match('/(\.bmp|\.gif|\.jpg|\.jpeg|\.png)$/i', $obj['photo']) && ($object->imgWidth > $maxWidth || $object->imgHeight > $maxHeight)) {
-					print '<a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&amp;action=addthumb&amp;type='.$type.'&amp;file='.urlencode($pdir.$viewfilename).'">'.img_picto($langs->trans('GenerateThumb'), 'refresh').'&nbsp;&nbsp;</a>';
+					print '<a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&token='.newToken().'&action=addthumb&type='.$type.'&file='.urlencode($pdir.$viewfilename).'">'.img_picto($langs->trans('GenerateThumb'), 'refresh').'&nbsp;&nbsp;</a>';
 				}
 				if ($user->rights->categorie->creer) {
-					print '<a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&amp;action=delete&amp;token='.newToken().'&amp;type='.$type.'&amp;file='.urlencode($pdir.$viewfilename).'">';
+					print '<a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.newToken().'&type='.$type.'&file='.urlencode($pdir.$viewfilename).'">';
 					print img_delete().'</a>';
 				}
 				if ($nbbyrow) {

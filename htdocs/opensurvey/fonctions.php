@@ -31,7 +31,6 @@
  */
 function opensurvey_prepare_head(Opensurveysondage $object)
 {
-
 	global $langs, $conf;
 
 	$h = 0;
@@ -112,8 +111,14 @@ function llxHeaderSurvey($title, $head = "", $disablejs = 0, $disablehead = 0, $
 		print '>';
 		print '</div>';
 		if (empty($conf->global->MAIN_HIDE_POWERED_BY)) {
-			print '<div class="poweredbypublicpayment opacitymedium right"><a class="poweredbyhref?utm_medium=website&utm_source=poweredby" href="https://www.dolibarr.org" target="dolibarr" rel="noopener">'.$langs->trans("PoweredBy").'<br><img src="'.DOL_URL_ROOT.'/theme/dolibarr_logo.svg" width="80px"></a></div>';
+			print '<div class="poweredbypublicpayment opacitymedium right"><a class="poweredbyhref" href="https://www.dolibarr.org?utm_medium=website&utm_source=poweredby" target="dolibarr" rel="noopener">'.$langs->trans("PoweredBy").'<br><img src="'.DOL_URL_ROOT.'/theme/dolibarr_logo.svg" width="80px"></a></div>';
 		}
+		print '</div>';
+	}
+
+	if (!empty($conf->global->OPENSURVEY_IMAGE_PUBLIC_INTERFACE)) {
+		print '<div class="backimagepublicopensurvey">';
+		print '<img id="idOPENSURVEY_IMAGE_PUBLIC_INTERFACE" src="'.$conf->global->OPENSURVEY_IMAGE_PUBLIC_INTERFACE.'">';
 		print '</div>';
 	}
 
@@ -201,7 +206,7 @@ function getUrlSondage($id, $admin = false)
 /**
  * 	Generate a random id
  *
- *	@param	string	$car	Char to generate key
+ *	@param	int		$car	Length of string to generate key
  * 	@return	string
  */
 function dol_survey_random($car)

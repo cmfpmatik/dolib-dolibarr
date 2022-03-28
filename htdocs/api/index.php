@@ -2,6 +2,7 @@
 /* Copyright (C) 2015	Jean-François Ferry		<jfefe@aternatik.fr>
  * Copyright (C) 2016	Laurent Destailleur		<eldy@users.sourceforge.net>
  * Copyright (C) 2017	Regis Houssin			<regis.houssin@inodbox.com>
+ * Copyright (C) 2021	Alexis LAURIER			<contact@alexislaurier.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,6 +55,27 @@ if (!empty($_SERVER['HTTP_DOLAPIENTITY'])) {
 	define("DOLENTITY", (int) $_SERVER['HTTP_DOLAPIENTITY']);
 }
 
+// Response for preflight requests (used by browser when into a CORS context)
+if (!empty($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'OPTIONS' && !empty($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
+	header('Access-Control-Allow-Origin: *');
+	header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+	header('Access-Control-Allow-Headers: Content-Type, Authorization, api_key, DOLAPIKEY');
+	http_response_code(204);
+	exit;
+}
+
+// When we request url to get the json file, we accept Cross site so we can include the descriptor into an external tool.
+if (preg_match('/\/explorer\/swagger\.json/', $_SERVER["PHP_SELF"])) {
+	header('Access-Control-Allow-Origin: *');
+	header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+	header('Access-Control-Allow-Headers: Content-Type, Authorization, api_key, DOLAPIKEY');
+}
+// When we request url to get an API, we accept Cross site so we can make js API call inside another website
+if (preg_match('/\/api\/index\.php/', $_SERVER["PHP_SELF"])) {
+	header('Access-Control-Allow-Origin: *');
+	header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
+	header('Access-Control-Allow-Headers: Content-Type, Authorization, api_key, DOLAPIKEY');
+}
 
 $res = 0;
 if (!$res && file_exists("../main.inc.php")) {
@@ -88,7 +110,7 @@ if (!empty($conf->global->MAIN_NGINX_FIX)) {
 // Enable and test if module Api is enabled
 if (empty($conf->global->MAIN_MODULE_API)) {
 	$langs->load("admin");
-	dol_syslog("Call Dolibarr API interfaces with module REST disabled");
+	dol_syslog("Call of Dolibarr API interfaces with module API REST are disabled");
 	print $langs->trans("WarningModuleNotActive", 'Api').'.<br><br>';
 	print $langs->trans("ToActivateModule");
 	//session_destroy();
@@ -112,7 +134,7 @@ if (preg_match('/api\/index\.php\/explorer/', $url) && !empty($conf->global->API
 
 // Analyze URLs
 // index.php/explorer                           do a redirect to index.php/explorer/
-// index.php/explorer/                          called by swagger to build explorer page
+// index.php/explorer/                          called by swagger to build explorer page index.php/explorer/index.html
 // index.php/explorer/.../....png|.css|.js      called by swagger for resources to build explorer page
 // index.php/explorer/resources.json            called by swagger to get list of all services
 // index.php/explorer/resources.json/xxx        called by swagger to get detail of services xxx
@@ -135,6 +157,25 @@ if (!empty($reg[1]) && $reg[1] == 'explorer' && ($reg[2] == '/swagger.json' || $
 
 $api = new DolibarrApi($db, '', $refreshcache);
 //var_dump($api->r->apiVersionMap);
+
+// If MAIN_API_DEBUG is set to 1, we save logs into file "dolibarr_api.log"
+if (!empty($conf->global->MAIN_API_DEBUG)) {
+	$r = $api->r;
+	$r->onCall(function () use ($r) {
+		// Don't log Luracast Restler Explorer recources calls
+		//if (!preg_match('/^explorer/', $r->url)) {
+		//	'method'  => $api->r->requestMethod,
+		//	'url'     => $api->r->url,
+		//	'route'   => $api->r->apiMethodInfo->className.'::'.$api->r->apiMethodInfo->methodName,
+		//	'version' => $api->r->getRequestedApiVersion(),
+		//	'data'    => $api->r->getRequestData(),
+		//dol_syslog("Debug API input ".var_export($r, true), LOG_DEBUG, 0, '_api');
+		dol_syslog("Debug API url ".var_export($r->url, true), LOG_DEBUG, 0, '_api');
+		dol_syslog("Debug API input ".var_export($r->getRequestData(), true), LOG_DEBUG, 0, '_api');
+		//}
+	});
+}
+
 
 // Enable the Restler API Explorer.
 // See https://github.com/Luracast/Restler-API-Explorer for more info.
@@ -211,6 +252,11 @@ if (!empty($reg[1]) && $reg[1] == 'explorer' && ($reg[2] == '/swagger.json' || $
 									continue;
 								}
 
+								//$conf->global->MAIN_MODULE_API_LOGIN_DISABLED = 1;
+								if ($file_searched == 'api_login.class.php' && !empty($conf->global->MAIN_MODULE_API_LOGIN_DISABLED)) {
+									continue;
+								}
+
 								$regapi = array();
 								if (is_readable($dir_part.$file_searched) && preg_match("/^api_(.*)\.class\.php$/i", $file_searched, $regapi)) {
 									$classname = ucwords($regapi[1]);
@@ -284,6 +330,29 @@ if (!empty($reg[1]) && ($reg[1] != 'explorer' || ($reg[2] != '/swagger.json' && 
 
 	$classname = ucwords($moduleobject);
 
+	// Test rules on endpoints. For example:
+	// $conf->global->API_ENDPOINT_RULES = 'endpoint1:1,endpoint2:1,...'
+	if (!empty($conf->global->API_ENDPOINT_RULES)) {
+		$listofendpoints = explode(',', $conf->global->API_ENDPOINT_RULES);
+		$endpointisallowed = false;
+
+		foreach ($listofendpoints as $endpointrule) {
+			$tmparray = explode(':', $endpointrule);
+			if (($classfile == $tmparray[0] || $classfile.'api' == $tmparray[0]) && $tmparray[1] == 1) {
+				$endpointisallowed = true;
+				break;
+			}
+		}
+
+		if (! $endpointisallowed) {
+			dol_syslog('The API with endpoint /'.$classfile.' is forbidden by config API_ENDPOINT_RULES', LOG_WARNING);
+			print 'The API with endpoint /'.$classfile.' is forbidden by config API_ENDPOINT_RULES';
+			header('HTTP/1.1 501 API is forbidden by API_ENDPOINT_RULES');
+			//session_destroy();
+			exit(0);
+		}
+	}
+
 	dol_syslog('Search api file /'.$moduledirforclass.'/class/api_'.$classfile.'.class.php => dir_part_file='.$dir_part_file.' classname='.$classname);
 
 	$res = false;
@@ -307,12 +376,52 @@ if (!empty($reg[1]) && ($reg[1] != 'explorer' || ($reg[2] != '/swagger.json' && 
 //var_dump($api->r->apiVersionMap);
 //exit;
 
+// We do not want that restler outputs data if we use native compression (default behaviour) but we want to have it returned into a string.
+// If API_DISABLE_COMPRESSION is set, returnResponse is false => It use default handling so output result directly.
+$usecompression = (empty($conf->global->API_DISABLE_COMPRESSION) && !empty($_SERVER['HTTP_ACCEPT_ENCODING']));
+$foundonealgorithm = 0;
+if ($usecompression) {
+	if (strpos($_SERVER['HTTP_ACCEPT_ENCODING'], 'br') !== false && is_callable('brotli_compress')) {
+		$foundonealgorithm++;
+	}
+	if (strpos($_SERVER['HTTP_ACCEPT_ENCODING'], 'bz') !== false && is_callable('bzcompress')) {
+		$foundonealgorithm++;
+	}
+	if (strpos($_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip') !== false && is_callable('gzencode')) {
+		$foundonealgorithm++;
+	}
+	if (!$foundonealgorithm) {
+		$usecompression = false;
+	}
+}
+
+//dol_syslog('We found some compression algoithm: '.$foundonealgorithm.' -> usecompression='.$usecompression, LOG_DEBUG);
+
+Luracast\Restler\Defaults::$returnResponse = $usecompression;
+
 // Call API (we suppose we found it).
 // The handle will use the file api/temp/routes.php to get data to run the API. If the file exists and the entry for API is not found, it will return 404.
+$result = $api->r->handle();
 
-//Luracast\Restler\Defaults::$returnResponse = true;
-//print $api->r->handle();
+if (Luracast\Restler\Defaults::$returnResponse) {
+	// We try to compress the data received data
+	if (strpos($_SERVER['HTTP_ACCEPT_ENCODING'], 'br') !== false && is_callable('brotli_compress')) {
+		header('Content-Encoding: br');
+		$result = brotli_compress($result, 11, BROTLI_TEXT);
+	} elseif (strpos($_SERVER['HTTP_ACCEPT_ENCODING'], 'bz') !== false && is_callable('bzcompress')) {
+		header('Content-Encoding: bz');
+		$result = bzcompress($result, 9);
+	} elseif (strpos($_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip') !== false && is_callable('gzencode')) {
+		header('Content-Encoding: gzip');
+		$result = gzencode($result, 9);
+	} else {
+		header('Content-Encoding: text/html');
+		print "No compression method found. Try to disable compression by adding API_DISABLE_COMPRESSION=1";
+		exit(0);
+	}
 
-$api->r->handle();
+	// Restler did not output data yet, we return it now
+	echo $result;
+}
 
 //session_destroy();

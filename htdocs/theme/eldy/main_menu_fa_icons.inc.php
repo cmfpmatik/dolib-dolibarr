@@ -15,7 +15,7 @@
 	-webkit-font-smoothing: antialiased;
 	text-align:center;
 	text-decoration:none;
-	color: #<?php echo $colortextbackhmenu; ?>;
+	color: var(--colortextbackhmenu);
 }
 
 .fa-15x {
@@ -53,7 +53,7 @@ div.mainmenu.bank::before {
 	content: "\f19c";
 }
 
-<?php if ($conf->global->MAIN_FEATURES_LEVEL == 2) { ?>
+<?php if (getDolGlobalInt('MAIN_FEATURES_LEVEL') == 2) { ?>
 /* TESTING USAGE OF SVG WITHOUT FONT */
 div.mainmenu.cashdesk {
 	line-height: 26px;
@@ -119,7 +119,7 @@ div.mainmenu.mrp::before {
 }
 
 div.mainmenu.project::before {
-	content: "\f0e8";
+	content: "\f542";
 }
 
 div.mainmenu.ticket::before {
@@ -169,7 +169,7 @@ div.mainmenu.generic4::before {
 .fa-play {
 	color: #444;
 }
-.fa-unlink {
+.fa-link, .fa-unlink {
 	color: #555;
 }
 
@@ -203,14 +203,15 @@ div.mainmenu.generic4::before {
 	margin-left: 30px;
 }
 
-.menu_titre .em092 {
+
+.em092 {
 	font-size: 0.92em;
 }
 
-.menu_titre .em088 {
+.em088 {
 	font-size: 0.88em;
 }
 
-.menu_titre .em080 {
+.em080 {
 	font-size: 0.80em;
 }

@@ -492,8 +492,7 @@ function getContactsForThirdParty($authentication, $idthirdparty)
 		$sql .= " c.fk_pays as country_id,";
 		$sql .= " c.fk_departement as state_id,";
 		$sql .= " c.birthday,";
-		$sql .= " c.poste, c.phone, c.phone_perso, c.phone_mobile, c.fax, c.email, c.jabberid,";
-		//$sql.= " c.priv, c.note, c.default_lang, c.canvas,";
+		$sql .= " c.poste, c.phone, c.phone_perso, c.phone_mobile, c.fax, c.email,";
 		$sql .= " co.label as country, co.code as country_code,";
 		$sql .= " d.nom as state, d.code_departement as state_code,";
 		$sql .= " u.rowid as user_id, u.login as user_login,";
@@ -503,7 +502,7 @@ function getContactsForThirdParty($authentication, $idthirdparty)
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_departements as d ON c.fk_departement = d.rowid";
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON c.rowid = u.fk_socpeople";
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe as s ON c.fk_soc = s.rowid";
-		$sql .= " WHERE c.fk_soc = ".$idthirdparty;
+		$sql .= " WHERE c.fk_soc = ".((int) $idthirdparty);
 
 		$resql = $db->query($sql);
 		if ($resql) {
@@ -545,7 +544,6 @@ function getContactsForThirdParty($authentication, $idthirdparty)
 					'phone_mobile' => $contact->phone_mobile ? $contact->phone_mobile : '',
 
 					'email' => $contact->email ? $contact->email : '',
-					'jabberid' => $contact->jabberid ? $contact->jabberid : '',
 					'priv' => $contact->priv ? $contact->priv : '',
 					'mail' => $contact->mail ? $contact->mail : '',
 
@@ -628,6 +626,7 @@ function updateContact($authentication, $contact)
 		if (!empty($object->id)) {
 			$objectfound = true;
 
+			$object->ref_ext = $contact['ref_ext'];
 
 			$object->firstname = $contact['firstname'];
 			$object->lastname = $contact['lastname'];

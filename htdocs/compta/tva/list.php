@@ -28,16 +28,10 @@
 
 require '../../main.inc.php';
 
-// Security check
-$socid = GETPOST('socid', 'int');
-if ($user->socid) {
-	$socid = $user->socid;
-}
-$result = restrictedArea($user, 'tax', '', '', 'charges');
-
 require_once DOL_DOCUMENT_ROOT.'/compta/tva/class/tva.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/account.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
 require_once DOL_DOCUMENT_ROOT.'/accountancy/class/accountingjournal.class.php';
 
@@ -57,14 +51,13 @@ $search_dateend_end = dol_mktime(23, 59, 59, GETPOST('search_dateend_endmonth', 
 $search_datepayment_start = dol_mktime(0, 0, 0, GETPOST('search_datepayment_startmonth', 'int'), GETPOST('search_datepayment_startday', 'int'), GETPOST('search_datepayment_startyear', 'int'));
 $search_datepayment_end = dol_mktime(23, 59, 59, GETPOST('search_datepayment_endmonth', 'int'), GETPOST('search_datepayment_endday', 'int'), GETPOST('search_datepayment_endyear', 'int'));
 $search_type = GETPOST('search_type', 'int');
-$search_cheque = GETPOST('search_cheque', 'alpha');
 $search_account				= GETPOST('search_account', 'int');
 $search_amount 				= GETPOST('search_amount', 'alpha');
 $search_status = GETPOST('search_status', 'int');
 
 $limit = GETPOST('limit', 'int') ? GETPOST('limit', 'int') : $conf->liste_limit;
-$sortfield					= GETPOST('sortfield', 'alpha');
-$sortorder					= GETPOST('sortorder', 'alpha');
+$sortfield					= GETPOST('sortfield', 'aZ09comma');
+$sortorder					= GETPOST('sortorder', 'aZ09comma');
 $page = GETPOSTISSET('pageplusone') ? (GETPOST('pageplusone') - 1) : GETPOST('page', 'int');
 
 if (empty($page) || $page == -1) {
@@ -85,15 +78,27 @@ $arrayfields = array(
 	't.rowid'			=>array('checked'=>1, 'position'=>10, 'label'=>"Ref",),
 	't.label'			=>array('checked'=>1, 'position'=>20, 'label'=>"Label"),
 	't.datev'			=>array('checked'=>1, 'position'=>30, 'label'=>"PeriodEndDate"),
-	't.fk_typepayment'	=>array('checked'=>1, 'position'=>50, 'label'=>"Type"),
+	't.fk_typepayment'	=>array('checked'=>1, 'position'=>50, 'label'=>"DefaultPaymentMode"),
 	't.amount'			=>array('checked'=>1, 'position'=>90, 'label'=>"Amount"),
 	't.status'			=>array('checked'=>1, 'position'=>90, 'label'=>"Status"),
 );
+
+if (!empty($conf->banque->enabled)) {
+	$arrayfields['t.fk_account'] = array('checked'=>1, 'position'=>60, 'label'=>"DefaultBankAccount");
+}
+
 $arrayfields = dol_sort_array($arrayfields, 'position');
 
 // Initialize technical object to manage hooks of page. Note that conf->hooks_modules contains array of hook context
 $hookmanager->initHooks(array('salestaxeslist'));
 $object = new Tva($db);
+
+// Security check
+$socid = GETPOST('socid', 'int');
+if ($user->socid) {
+	$socid = $user->socid;
+}
+$result = restrictedArea($user, 'tax', '', 'tva', 'charges');
 
 
 /*
@@ -118,7 +123,6 @@ if (empty($reshook)) {
 		$search_datepayment_start = '';
 		$search_datepayment_end = '';
 		$search_type = '';
-		$search_cheque = '';
 		$search_account = '';
 		$search_amount = '';
 		$search_status = '';
@@ -132,6 +136,7 @@ if (empty($reshook)) {
 
 $form = new Form($db);
 $formother = new FormOther($db);
+$formfile = new FormFile($db);
 $tva_static = new Tva($db);
 $bankstatic = new Account($db);
 $accountingjournal = new AccountingJournal($db);
@@ -139,11 +144,14 @@ $bankline = new AccountLine($db);
 
 llxHeader('', $langs->trans("VATDeclarations"));
 
-$sql = 'SELECT t.rowid, t.amount, t.label, t.datev, t.datep, t.paye, t.fk_typepayment as type, t.num_payment, pst.code as payment_code,';
+$sql = 'SELECT t.rowid, t.amount, t.label, t.datev, t.datep, t.paye, t.fk_typepayment as type, t.fk_account,';
+$sql.= ' ba.label as blabel, ba.ref as bref, ba.number as bnumber, ba.account_number, ba.iban_prefix as iban, ba.bic, ba.currency_code, ba.clos,';
+$sql.= ' t.num_payment, pst.code as payment_code,';
 $sql .= ' SUM(ptva.amount) as alreadypayed';
 $sql .= ' FROM '.MAIN_DB_PREFIX.'tva as t';
-$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'c_paiement as pst ON t.fk_typepayment = pst.id';
-$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."payment_vat as ptva ON ptva.fk_tva = t.rowid";
+$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'c_paiement as pst ON (t.fk_typepayment = pst.id)';
+$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'bank_account as ba ON (t.fk_account = ba.rowid)';
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."payment_vat as ptva ON (ptva.fk_tva = t.rowid)";
 $sql .= ' WHERE t.entity IN ('.getEntity($object->element).')';
 
 if (!empty($search_ref)) {
@@ -153,31 +161,31 @@ if (!empty($search_label)) {
 	$sql .= natural_search('t.label', $search_label);
 }
 if (!empty($search_dateend_start)) {
-	$sql .= ' AND t.datev >= "'.$db->idate($search_dateend_start).'"';
+	$sql .= " AND t.datev >= '".$db->idate($search_dateend_start)."'";
 }
 if (!empty($search_dateend_end)) {
-	$sql .= ' AND t.datev <= "'.$db->idate($search_dateend_end).'"';
+	$sql .= " AND t.datev <= '".$db->idate($search_dateend_end)."'";
 }
 if (!empty($search_datepayment_start)) {
-	$sql .= ' AND t.datep >= "'.$db->idate($search_datepayment_start).'"';
+	$sql .= " AND t.datep >= '".$db->idate($search_datepayment_start)."'";
 }
 if (!empty($search_datepayment_end)) {
-	$sql .= ' AND t.datep <= "'.$db->idate($search_datepayment_end).'"';
+	$sql .= " AND t.datep <= '".$db->idate($search_datepayment_end)."'";
 }
 if (!empty($search_type) && $search_type > 0) {
-	$sql .= ' AND t.fk_typepayment='.$search_type;
+	$sql .= ' AND t.fk_typepayment = '.((int) $search_type);
 }
 if (!empty($search_account) && $search_account > 0) {
-	$sql .= ' AND b.fk_account='.$search_account;
+	$sql .= ' AND t.fk_account = '.((int) $search_account);
 }
 if (!empty($search_amount)) {
 	$sql .= natural_search('t.amount', price2num(trim($search_amount)), 1);
 }
 if ($search_status != '' && $search_status >= 0) {
-	$sql .= " AND t.paye = ".$db->escape($search_status);
+	$sql .= " AND t.paye = ".((int) $search_status);
 }
 
-$sql .= " GROUP BY t.rowid, t.amount, t.label, t.datev, t.datep, t.paye, t.fk_typepayment, t.num_payment, pst.code";
+$sql .= " GROUP BY t.rowid, t.amount, t.label, t.datev, t.datep, t.paye, t.fk_typepayment, t.fk_account, ba.label, ba.ref, ba.number, ba.account_number, ba.iban_prefix, ba.bic, ba.currency_code, ba.clos, t.num_payment, pst.code";
 $sql .= $db->order($sortfield, $sortorder);
 
 $nbtotalofrecords = '';
@@ -259,9 +267,6 @@ if (!empty($search_datepayment_end)) {
 }
 if (!empty($search_type) && $search_type > 0) {
 	$param .= '&search_type='.$search_type;
-}
-if (!empty($search_cheque)) {
-	$param .= '&search_cheque="'.$search_cheque.'"';
 }
 if (!empty($search_account) && $search_account > 0) {
 	$param .= '&search_account='.$search_account;
@@ -353,6 +358,13 @@ if (!empty($arrayfields['t.fk_typepayment']['checked'])) {
 	print '</td>';
 }
 
+// Filter: Bank Account
+if (!empty($arrayfields['t.fk_account']['checked'])) {
+	print '<td class="liste_titre left">';
+	$form->select_comptes($search_account, 'search_account', 0, '', 1);
+	print '</td>';
+}
+
 // Filter: Amount
 if (!empty($arrayfields['t.amount']['checked'])) {
 	print '<td class="liste_titre right">';
@@ -396,6 +408,9 @@ if (!empty($arrayfields['t.datev']['checked'])) {
 if (!empty($arrayfields['t.fk_typepayment']['checked'])) {
 	print_liste_field_titre($arrayfields['t.fk_typepayment']['label'], $_SERVER['PHP_SELF'], 't.fk_typepayment', '', $param, '', $sortfield, $sortorder, 'left ');
 }
+if (!empty($arrayfields['t.fk_account']['checked'])) {
+	print_liste_field_titre($arrayfields['t.fk_account']['label'], $_SERVER['PHP_SELF'], 't.fk_account', '', $param, '', $sortfield, $sortorder, 'left ');
+}
 if (!empty($arrayfields['t.amount']['checked'])) {
 	print_liste_field_titre($arrayfields['t.amount']['label'], $_SERVER['PHP_SELF'], 't.amount', '', $param, '', $sortfield, $sortorder, 'right ');
 }
@@ -432,7 +447,13 @@ while ($i < min($num, $limit)) {
 
 	// Ref
 	if (!empty($arrayfields['t.rowid']['checked'])) {
-		print '<td>'.$tva_static->getNomUrl(1).'</td>';
+		print '<td>';
+		print $tva_static->getNomUrl(1);
+		$filename = dol_sanitizeFileName($tva_static->ref);
+		$filedir = $conf->tax->dir_output.'/vat/'.dol_sanitizeFileName($tva_static->ref);
+		$urlsource = $_SERVER['PHP_SELF'].'?id='.$tva_static->id;
+		print $formfile->getDocumentsLink($tva_static->element, $filename, $filedir, '', 'valignmiddle paddingleft2imp');
+		print '</td>';
 		if (!$i) {
 			$totalarray['nbfield']++;
 		}
@@ -462,35 +483,41 @@ while ($i < min($num, $limit)) {
 
 	// Type
 	if (!empty($arrayfields['t.fk_typepayment']['checked'])) {
-		print '<td>'.$langs->trans("PaymentTypeShort".$obj->payment_code).'</td>';
+		print '<td>';
+		if (!empty($obj->payment_code)) print $langs->trans("PaymentTypeShort".$obj->payment_code);
+		print '</td>';
 		if (!$i) {
 			$totalarray['nbfield']++;
 		}
 	}
 
 	// Account
-	/*if (!empty($arrayfields['ba.label']['checked'])) {
+	if (!empty($arrayfields['t.fk_account']['checked'])) {
 		print '<td>';
-		if ($obj->fk_bank > 0) {
-			$bankstatic->id = $obj->bid;
+		if ($obj->fk_account > 0) {
+			$bankstatic->id = $obj->fk_account;
 			$bankstatic->ref = $obj->bref;
 			$bankstatic->number = $obj->bnumber;
+			$bankstatic->iban = $obj->iban;
+			$bankstatic->bic = $obj->bic;
+			$bankstatic->currency_code = $langs->trans("Currency".$obj->currency_code);
 			$bankstatic->account_number = $obj->account_number;
+			$bankstatic->clos = $obj->clos;
 
-			$accountingjournal->fetch($obj->fk_accountancy_journal);
-			$bankstatic->accountancy_journal = $accountingjournal->getNomUrl(0, 1, 1, '', 1);
+			//$accountingjournal->fetch($obj->fk_accountancy_journal);
+			//$bankstatic->accountancy_journal = $accountingjournal->getNomUrl(0, 1, 1, '', 1);
 
 			$bankstatic->label = $obj->blabel;
 			print $bankstatic->getNomUrl(1);
 		}
 		print '</td>';
 		if (!$i) $totalarray['nbfield']++;
-	}*/
+	}
 
 	// Amount
 	if (!empty($arrayfields['t.amount']['checked'])) {
 		$total = $total + $obj->amount;
-		print '<td class="nowrap right">' . price($obj->amount) . '</td>';
+		print '<td class="nowrap right"><span class="amount">' . price($obj->amount) . '</span></td>';
 		if (!$i) {
 			$totalarray['nbfield']++;
 		}

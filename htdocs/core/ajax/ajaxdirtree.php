@@ -47,8 +47,6 @@ if (!isset($mode) || $mode != 'noajax') {    // For ajax call
 	include_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 	include_once DOL_DOCUMENT_ROOT.'/ecm/class/ecmdirectory.class.php';
 
-	//if (GETPOST('preopened')) { $_GET['dir'] = $_POST['dir'] = '/bbb/'; }
-
 	$openeddir = GETPOST('openeddir');
 	$modulepart = GETPOST('modulepart');
 	$selecteddir = jsUnEscape(GETPOST('dir')); // relative path. We must decode using same encoding function used by javascript: escape()
@@ -58,9 +56,8 @@ if (!isset($mode) || $mode != 'noajax') {    // For ajax call
 	if ($selecteddir != '/') {
 		$selecteddir = preg_replace('/\/$/', '', $selecteddir); // We removed last '/' except if it is '/'
 	}
-} else // For no ajax call
-{
-	//if (GETPOST('preopened')) { $_GET['dir'] = $_POST['dir'] = GETPOST('preopened'); }
+} else {
+	// For no ajax call
 
 	$openeddir = GETPOST('openeddir');
 	$modulepart = GETPOST('modulepart');
@@ -75,6 +72,9 @@ if (!isset($mode) || $mode != 'noajax') {    // For ajax call
 		$url = DOL_URL_ROOT.'/ecm/index.php';
 	}
 }
+
+$websitekey = GETPOST('websitekey', 'alpha');
+$pageid = GETPOST('pageid', 'int');
 
 // Load translation files required by the page
 $langs->load("ecm");
@@ -122,7 +122,7 @@ $userstatic = new User($db);
 $form = new Form($db);
 $ecmdirstatic = new EcmDirectory($db);
 
-// Load full tree of ECM module from database. We will use it to define nbofsubdir and nboffilesinsubdir
+// Load full manual tree of ECM module from database. We will use it to define nbofsubdir and nboffilesinsubdir
 if (empty($sqltree)) {
 	$sqltree = $ecmdirstatic->get_full_arbo(0);
 }
@@ -157,7 +157,7 @@ if (!empty($conf->use_javascript_ajax) && empty($conf->global->MAIN_ECM_DISABLE_
 	            	</script>';
 
 	// This ajax service is called only when a directory $selecteddir is opened but not when closed.
-	//print '<script language="javascript">';
+	//print '<script type="text/javascript">';
 	//print "loadandshowpreview('".dol_escape_js($selecteddir)."');";
 	//print '</script>';
 }
@@ -166,7 +166,7 @@ if (!empty($conf->use_javascript_ajax) && empty($conf->global->MAIN_ECM_DISABLE_
 if (empty($conf->use_javascript_ajax) || !empty($conf->global->MAIN_ECM_DISABLE_JS)) {
 	print '<ul class="ecmjqft">';
 
-	// Load full tree from database. We will use it to define nbofsubdir and nboffilesinsubdir
+	// Load full manual tree from database. We will use it to define nbofsubdir and nboffilesinsubdir
 	if (empty($sqltree)) {
 		$sqltree = $ecmdirstatic->get_full_arbo(0); // Slow
 	}
@@ -280,7 +280,7 @@ if (empty($conf->use_javascript_ajax) || !empty($conf->global->MAIN_ECM_DISABLE_
 			print '</td>';
 			print '<td class="left">';
 			if ($nbofsubdir && $nboffilesinsubdir) {
-				print '<font color="#AAAAAA">+'.$nboffilesinsubdir.'</font> ';
+				print '<span style="color: #AAAAAA">+'.$nboffilesinsubdir.'</span> ';
 			}
 			print '</td>';
 
@@ -288,6 +288,7 @@ if (empty($conf->use_javascript_ajax) || !empty($conf->global->MAIN_ECM_DISABLE_
 			print '<td class="center">';
 			$userstatic->id = $val['fk_user_c'];
 			$userstatic->lastname = $val['login_c'];
+			$userstatic->statut = $val['statut_c'];
 			$htmltooltip = '<b>'.$langs->trans("ECMSection").'</b>: '.$val['label'].'<br>';
 			$htmltooltip = '<b>'.$langs->trans("Type").'</b>: '.$langs->trans("ECMSectionManual").'<br>';
 			$htmltooltip .= '<b>'.$langs->trans("ECMCreationUser").'</b>: '.$userstatic->getNomUrl(1, '', false, 1).'<br>';
@@ -435,7 +436,7 @@ function treeOutputForAbsoluteDir($sqltree, $selecteddir, $fullpathselecteddir, 
 						print '</td>';
 						print '<td class="left">';
 						if ($nbofsubdir > 0 && $nboffilesinsubdir > 0) {
-							print '<font class="opacitymedium">+'.$nboffilesinsubdir.'</font> ';
+							print '<span class="opacitymedium">+'.$nboffilesinsubdir.'</span> ';
 						}
 						print '</td>';
 
@@ -454,6 +455,7 @@ function treeOutputForAbsoluteDir($sqltree, $selecteddir, $fullpathselecteddir, 
 							print '<td class="right" width="18">';
 							$userstatic->id = isset($val['fk_user_c']) ? $val['fk_user_c'] : 0;
 							$userstatic->lastname = isset($val['login_c']) ? $val['login_c'] : 0;
+							$userstatic->statut = isset($val['statut_c']) ? $val['statut_c'] : 0;
 							$htmltooltip = '<b>'.$langs->trans("ECMSection").'</b>: '.$val['label'].'<br>';
 							$htmltooltip = '<b>'.$langs->trans("Type").'</b>: '.$langs->trans("ECMSectionManual").'<br>';
 							$htmltooltip .= '<b>'.$langs->trans("ECMCreationUser").'</b>: '.$userstatic->getNomUrl(1, '', false, 1).'<br>';

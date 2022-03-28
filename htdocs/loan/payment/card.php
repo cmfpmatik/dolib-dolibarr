@@ -58,7 +58,7 @@ if ($id > 0) {
 if ($action == 'confirm_delete' && $confirm == 'yes' && $user->rights->loan->delete) {
 	$db->begin();
 
-	$sql = "UPDATE ".MAIN_DB_PREFIX."loan_schedule SET fk_bank = 0 WHERE fk_bank = ".$payment->fk_bank;
+	$sql = "UPDATE ".MAIN_DB_PREFIX."loan_schedule SET fk_bank = 0 WHERE fk_bank = ".((int) $payment->fk_bank);
 	$db->query($sql);
 
 	$fk_loan = $payment->fk_loan;
@@ -66,7 +66,7 @@ if ($action == 'confirm_delete' && $confirm == 'yes' && $user->rights->loan->del
 	$result = $payment->delete($user);
 	if ($result > 0) {
 		$db->commit();
-		header("Location: ".DOL_URL_ROOT."/loan/card.php?id=".$fk_loan);
+		header("Location: ".DOL_URL_ROOT."/loan/card.php?id=".urlencode($fk_loan));
 		exit;
 	} else {
 		setEventMessages($payment->error, $payment->errors, 'errors');
@@ -156,8 +156,8 @@ $disable_delete = 0;
 $sql = 'SELECT l.rowid as id, l.label, l.paid, l.capital as capital, pl.amount_capital, pl.amount_insurance, pl.amount_interest';
 $sql .= ' FROM '.MAIN_DB_PREFIX.'payment_loan as pl,'.MAIN_DB_PREFIX.'loan as l';
 $sql .= ' WHERE pl.fk_loan = l.rowid';
-$sql .= ' AND l.entity = '.$conf->entity;
-$sql .= ' AND pl.rowid = '.$payment->id;
+$sql .= ' AND l.entity = '.((int) $conf->entity);
+$sql .= ' AND pl.rowid = '.((int) $payment->id);
 
 dol_syslog("loan/payment/card.php", LOG_DEBUG);
 $resql = $db->query($sql);
@@ -222,7 +222,7 @@ print '<div class="tabsAction">';
 
 if (empty($action) && !empty($user->rights->loan->delete)) {
 	if (!$disable_delete) {
-		print '<a class="butActionDelete" href="card.php?id='.$id.'&amp;action=delete&amp;token='.newToken().'">'.$langs->trans('Delete').'</a>';
+		print '<a class="butActionDelete" href="card.php?id='.$id.'&action=delete&token='.newToken().'">'.$langs->trans('Delete').'</a>';
 	} else {
 		print '<a class="butActionRefused classfortooltip" href="#" title="'.dol_escape_htmltag($langs->trans("CantRemovePaymentWithOneInvoicePaid")).'">'.$langs->trans('Delete').'</a>';
 	}

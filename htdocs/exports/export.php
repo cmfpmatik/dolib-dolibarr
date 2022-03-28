@@ -151,8 +151,10 @@ $sqlusedforexport = '';
 $head = array();
 $upload_dir = $conf->export->dir_temp.'/'.$user->id;
 
-//$usefilters=($conf->global->MAIN_FEATURES_LEVEL > 1);
 $usefilters = 1;
+
+// Security check
+$result = restrictedArea($user, 'export');
 
 
 /*
@@ -332,6 +334,7 @@ if ($action == 'add_export_model') {
 		$objexport->datatoexport = $datatoexport;
 		$objexport->hexa = $hexa;
 		$objexport->hexafiltervalue = $hexafiltervalue;
+		$objexport->fk_user = (GETPOST('visibility', 'aZ09') == 'all' ? 0 : $user->id);
 
 		$result = $objexport->create($user);
 		if ($result >= 0) {
@@ -385,16 +388,17 @@ if ($step == 4 && $action == 'submitFormField') {
 		$_SESSION["export_filtered_fields"] = array();
 		foreach ($objexport->array_export_TypeFields[0] as $code => $type) {	// $code: s.fieldname $value: Text|Boolean|List:ccc
 			$newcode = (string) preg_replace('/\./', '_', $code);
-			//print 'xxx'.$code."=".$newcode."=".$type."=".$_POST[$newcode]."\n<br>";
+			//print 'xxx '.$code."=".$newcode."=".$type."=".GETPOST($newcode)."\n<br>";
+			$check = 'alphanohtml';
 			$filterqualified = 1;
-			if (!GETPOSTISSET($newcode) || GETPOST($newcode, 'restricthtml') == '') {
+			if (!GETPOSTISSET($newcode) || GETPOST($newcode, $check) == '') {
 				$filterqualified = 0;
-			} elseif (preg_match('/^List/', $type) && (is_numeric(GETPOST($newcode, 'restricthtml')) && GETPOST($newcode, 'restricthtml') <= 0)) {
+			} elseif (preg_match('/^List/', $type) && (is_numeric(GETPOST($newcode, $check)) && GETPOST($newcode, $check) <= 0)) {
 				$filterqualified = 0;
 			}
 			if ($filterqualified) {
 				//print 'Filter on '.$newcode.' type='.$type.' value='.$_POST[$newcode]."\n";
-				$objexport->array_export_FilterValue[0][$code] = GETPOST($newcode, 'restricthtml');
+				$objexport->array_export_FilterValue[0][$code] = GETPOST($newcode, $check);
 			}
 		}
 		$array_filtervalue = (!empty($objexport->array_export_FilterValue[0]) ? $objexport->array_export_FilterValue[0] : '');
@@ -449,7 +453,7 @@ if ($step == 1 || !$datatoexport) {
 			if ($objexport->array_export_perms[$key]) {
 				print '<a href="'.DOL_URL_ROOT.'/exports/export.php?step=2&module_position='.$objexport->array_export_module[$key]->module_position.'&datatoexport='.$objexport->array_export_code[$key].'">'.img_picto($langs->trans("NewExport"), 'next', 'class="fa-15x"').'</a>';
 			} else {
-				print $langs->trans("NotEnoughPermissions");
+				print '<span class="opacitymedium">'.$langs->trans("NotEnoughPermissions").'</span>';
 			}
 			print '</td></tr>';
 		}
@@ -513,11 +517,7 @@ if ($step == 2 && $datatoexport) {
 	print '<input type="hidden" name="datatoexport" value="'.$datatoexport.'">';
 	print '<div class="valignmiddle marginbottomonly">';
 	print '<span class="opacitymedium">'.$langs->trans("SelectExportFields").'</span> ';
-	if (empty($conf->global->EXPORTS_SHARE_MODELS)) {
-		$htmlother->select_export_model($exportmodelid, 'exportmodelid', $datatoexport, 1, $user->id);
-	} else {
-		$htmlother->select_export_model($exportmodelid, 'exportmodelid', $datatoexport, 1);
-	}
+	$htmlother->select_export_model($exportmodelid, 'exportmodelid', $datatoexport, 1, $user->id);
 	print ' ';
 	print '<input type="submit" class="button" value="'.$langs->trans("Select").'">';
 	print '</div>';
@@ -619,7 +619,7 @@ if ($step == 2 && $datatoexport) {
 	print '</div>';
 
 	/*
-	 * Barre d'action
+	 * Action bar
 	 */
 	print '<div class="tabsAction tabsActionNoBottom">';
 
@@ -793,7 +793,7 @@ if ($step == 3 && $datatoexport) {
 	print '</div>';
 
 	/*
-	 * Barre d'action
+	 * Action bar
 	 */
 	print '<div class="tabsAction tabsActionNoBottom">';
 	// il n'est pas obligatoire de filtrer les champs
@@ -974,8 +974,7 @@ if ($step == 4 && $datatoexport) {
 	print '</div>';
 
 	/*
-	 * Barre d'action
-	 *
+	 * Action bar
 	 */
 	print '<div class="tabsAction">';
 
@@ -1005,20 +1004,28 @@ if ($step == 4 && $datatoexport) {
 		print '<table class="noborder centpercent">';
 		print '<tr class="liste_titre">';
 		print '<td>'.$langs->trans("ExportModelName").'</td>';
-		print '<td>&nbsp;</td>';
+		print '<td>'.$langs->trans("Visibility").'</td>';
+		print '<td></td>';
 		print '</tr>';
 
 		print '<tr class="oddeven">';
-		print '<td><input name="export_name" size="32" value=""></td><td class="right">';
+		print '<td><input name="export_name" value=""></td>';
+		print '<td>';
+		$arrayvisibility = array('private'=>$langs->trans("Private"), 'all'=>$langs->trans("Everybody"));
+		print $form->selectarray('visibility', $arrayvisibility, 'private');
+		print '</td>';
+		print '<td class="right">';
 		print '<input type="submit" class="button reposition button-save" value="'.$langs->trans("Save").'">';
 		print '</td></tr>';
 
+		$tmpuser = new User($db);
+
 		// List of existing export profils
-		$sql = "SELECT rowid, label";
+		$sql = "SELECT rowid, label, fk_user, entity";
 		$sql .= " FROM ".MAIN_DB_PREFIX."export_model";
 		$sql .= " WHERE type = '".$db->escape($datatoexport)."'";
-		if (empty($conf->global->EXPORTS_SHARE_MODELS)) {
-			$sql .= " AND fk_user=".$user->id;
+		if (empty($conf->global->EXPORTS_SHARE_MODELS)) {	// EXPORTS_SHARE_MODELS means all templates are visible, whatever is owner.
+			$sql .= " AND fk_user IN (0, ".((int) $user->id).")";
 		}
 		$sql .= " ORDER BY rowid";
 		$resql = $db->query($sql);
@@ -1027,9 +1034,19 @@ if ($step == 4 && $datatoexport) {
 			$i = 0;
 			while ($i < $num) {
 				$obj = $db->fetch_object($resql);
+
 				print '<tr class="oddeven"><td>';
 				print $obj->label;
-				print '</td><td class="right">';
+				print '</td>';
+				print '<td>';
+				if (empty($obj->fk_user)) {
+					print $langs->trans("Everybody");
+				} else {
+					$tmpuser->fetch($obj->fk_user);
+					print $tmpuser->getNomUrl(1);
+				}
+				print '</td>';
+				print '<td class="right">';
 				print '<a class="reposition" href="'.$_SERVER["PHP_SELF"].'?step='.$step.'&datatoexport='.$datatoexport.'&action=deleteprof&token='.newToken().'&id='.$obj->rowid.'">';
 				print img_delete();
 				print '</a>';
@@ -1195,7 +1212,7 @@ if ($step == 5 && $datatoexport) {
 
 	// Show existing generated documents
 	// NB: La fonction show_documents rescanne les modules qd genallowed=1, sinon prend $liste
-	print $formfile->showdocuments('export', '', $upload_dir, $_SERVER["PHP_SELF"].'?step=5&datatoexport='.$datatoexport, $liste, 1, (!empty($_POST['model']) ? $_POST['model'] : 'csv'), 1, 1, 0, 0, 0, '', 'none', '', '', '');
+	print $formfile->showdocuments('export', '', $upload_dir, $_SERVER["PHP_SELF"].'?step=5&datatoexport='.$datatoexport, $liste, 1, (GETPOST('model') ? GETPOST('model') : 'csv'), 1, 1, 0, 0, 0, '', 'none', '', '', '');
 }
 
 llxFooter();

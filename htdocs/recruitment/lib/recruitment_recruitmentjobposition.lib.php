@@ -124,11 +124,11 @@ function getPublicJobPositionUrl($mode, $ref = '', $localorexternal = 0)
 		$urltouse = $urlwithroot;
 	}
 
-	$out = $urltouse.'/public/recruitment/view.php?ref='.($mode ? '<font color="#666666">' : '').$ref.($mode ? '</font>' : '');
+	$out = $urltouse.'/public/recruitment/view.php?ref='.($mode ? '<span style="color: #666666">' : '').$ref.($mode ? '</span>' : '');
 	/*if (!empty($conf->global->RECRUITMENT_SECURITY_TOKEN))
 	{
-		if (empty($conf->global->RECRUITMENT_SECURITY_TOKEN)) $out .= '&securekey='.$conf->global->RECRUITMENT_SECURITY_TOKEN;
-		else $out .= '&securekey='.dol_hash($conf->global->RECRUITMENT_SECURITY_TOKEN, 2);
+		if (empty($conf->global->RECRUITMENT_SECURITY_TOKEN)) $out .= '&securekey='.urlencode($conf->global->RECRUITMENT_SECURITY_TOKEN);
+		else $out .= '&securekey='.urlencode(dol_hash($conf->global->RECRUITMENT_SECURITY_TOKEN, 2));
 	}*/
 
 	// For multicompany

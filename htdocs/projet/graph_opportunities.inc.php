@@ -19,14 +19,14 @@
 
 if (!empty($conf->global->PROJECT_USE_OPPORTUNITIES)) {
 	$sql = "SELECT p.fk_opp_status as opp_status, cls.code, COUNT(p.rowid) as nb, SUM(p.opp_amount) as opp_amount, SUM(p.opp_amount * p.opp_percent) as ponderated_opp_amount";
-	$sql .= " FROM ".MAIN_DB_PREFIX."projet as p LEFT JOIN ".MAIN_DB_PREFIX."c_lead_status as cls ON p.fk_opp_status = cls.rowid";	// If lead status has been removed, we must show it in stats as unknown
+	$sql .= " FROM ".MAIN_DB_PREFIX."projet as p LEFT JOIN ".MAIN_DB_PREFIX."c_lead_status as cls ON p.fk_opp_status = cls.rowid"; // If lead status has been removed, we must show it in stats as unknown
 	$sql .= " WHERE p.entity IN (".getEntity('project').")";
 	$sql .= " AND p.fk_statut = 1"; // Opend projects only
 	if ($mine || empty($user->rights->projet->all->lire)) {
-		$sql .= " AND p.rowid IN (".$projectsListId.")";
+		$sql .= " AND p.rowid IN (".$db->sanitize($projectsListId).")";
 	}
-	if ($socid) {
-		$sql .= "  AND (p.fk_soc IS NULL OR p.fk_soc = 0 OR p.fk_soc = ".$socid.")";
+	if ($socid > 0) {
+		$sql .= "  AND (p.fk_soc IS NULL OR p.fk_soc = 0 OR p.fk_soc = ".((int) $socid).")";
 	}
 	$sql .= " GROUP BY p.fk_opp_status, cls.code";
 	$resql = $db->query($sql);
@@ -35,6 +35,7 @@ if (!empty($conf->global->PROJECT_USE_OPPORTUNITIES)) {
 		$num = $db->num_rows($resql);
 		$i = 0;
 
+		$total = 0;
 		$totalnb = 0;
 		$totaloppnb = 0;
 		$totalamount = 0;
@@ -82,12 +83,15 @@ if (!empty($conf->global->PROJECT_USE_OPPORTUNITIES)) {
 			$code = dol_getIdFromCode($db, $status, 'c_lead_status', 'rowid', 'code');
 			if ($code) {
 				$labelStatus = $langs->transnoentitiesnoconv("OppStatus".$code);
+				if ($code == 'WON' || $code == 'LOST') {
+					$labelStatus = $langs->transnoentitiesnoconv("OppStatus".$code).' ('.$langs->transnoentitiesnoconv("NotClosedYet").")";
+				}
 			}
 			if (empty($labelStatus)) {
 				$labelStatus = $listofopplabel[$status];
 			}
 			if (empty($labelStatus)) {
-				$labelStatus = $langs->transnoentitiesnoconv('OldValue', $status);	// When id is id of an entry no more in dictionary for example.
+				$labelStatus = $langs->transnoentitiesnoconv('OldValue', $status); // When id is id of an entry no more in dictionary for example.
 			}
 
 			//$labelStatus .= ' ('.$langs->trans("Coeff").': '.price2num($listofoppstatus[$status]).')';

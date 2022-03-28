@@ -2,7 +2,7 @@
 /* Copyright (C) 2004       Rodolphe Quiedeville    <rodolphe@quiedeville.org>
  * Copyright (C) 2004-2011  Laurent Destailleur     <eldy@users.sourceforge.net>
  * Copyright (C) 2005-2012  Regis Houssin           <regis.houssin@inodbox.com>
- * Copyright (C) 2018-2020  Frédéric France         <frederic.france@netlogic.fr>
+ * Copyright (C) 2018-2021  Frédéric France         <frederic.france@netlogic.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,12 +45,12 @@ $object = new Contact($db);
  * Action
  */
 
-if ($action == 'update' && !$_POST["cancel"] && $user->rights->societe->contact->creer) {
+if ($action == 'update' && !GETPOST("cancel") && $user->rights->societe->contact->creer) {
 	$ret = $object->fetch($id);
 
 	// Note: Correct date should be completed with location to have exact GM time of birth.
-	$object->birthday = dol_mktime(0, 0, 0, $_POST["birthdaymonth"], $_POST["birthdayday"], $_POST["birthdayyear"]);
-	$object->birthday_alert = $_POST["birthday_alert"];
+	$object->birthday = dol_mktime(0, 0, 0, GETPOST("birthdaymonth"), GETPOST("birthdayday"), GETPOST("birthdayyear"));
+	$object->birthday_alert = GETPOST("birthday_alert");
 
 	if (GETPOST('deletephoto')) {
 		$object->photo = '';
@@ -60,8 +60,8 @@ if ($action == 'update' && !$_POST["cancel"] && $user->rights->societe->contact-
 
 	$result = $object->update_perso($id, $user);
 	if ($result > 0) {
-		$object->old_name = '';
-		$object->old_firstname = '';
+		$object->oldcopy = clone $object;
+
 		// Logo/Photo save
 		$dir = $conf->societe->dir_output.'/contact/'.get_exdir($object->id, 0, 0, 1, $object, 'contact').'/photos';
 
@@ -119,7 +119,7 @@ if (!empty($conf->global->MAIN_HTML_TITLE) && preg_match('/contactnameonly/', $c
 	$title = $object->lastname;
 }
 $help_url = 'EN:Module_Third_Parties|FR:Module_Tiers|ES:Empresas';
-llxHeader('', $title, $helpurl);
+llxHeader('', $title, $help_url);
 
 $form = new Form($db);
 
@@ -205,11 +205,7 @@ if ($action == 'edit') {
 
 	print dol_get_fiche_end();
 
-	print '<div class="center">';
-	print '<input type="submit" class="button button-save" name="save" value="'.$langs->trans("Save").'">';
-	print '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
-	print '<input type="submit" class="button button-cancel" name="cancel" value="'.$langs->trans("Cancel").'">';
-	print '</div>';
+	print $form->buttonsSaveCancel();
 
 	print "</form>";
 } else {
@@ -219,7 +215,11 @@ if ($action == 'edit') {
 
 	$linkback = '<a href="'.DOL_URL_ROOT.'/contact/list.php?restore_lastsearch_values=1">'.$langs->trans("BackToList").'</a>';
 
-	$morehtmlref = '<div class="refidno">';
+	$morehtmlref = '<a href="'.DOL_URL_ROOT.'/contact/vcard.php?id='.$object->id.'" class="refid">';
+	$morehtmlref .= img_picto($langs->trans("Download").' '.$langs->trans("VCard"), 'vcard.png', 'class="valignmiddle marginleftonly paddingrightonly"');
+	$morehtmlref .= '</a>';
+
+	$morehtmlref .= '<div class="refidno">';
 	if (empty($conf->global->SOCIETE_DISABLE_CONTACTS)) {
 		$objsoc = new Societe($db);
 		$objsoc->fetch($object->socid);
@@ -308,12 +308,14 @@ if ($action == 'edit') {
 
 
 if ($action != 'edit') {
-	// Barre d'actions
+	/*
+	 * Action bar
+	 */
 	if ($user->socid == 0) {
 		print '<div class="tabsAction">';
 
 		if ($user->rights->societe->contact->creer) {
-			print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&amp;action=edit">'.$langs->trans('Modify').'</a>';
+			print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=edit&token='.newToken().'">'.$langs->trans('Modify').'</a>';
 		}
 
 		print "</div>";

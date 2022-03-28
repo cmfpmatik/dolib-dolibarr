@@ -1,7 +1,7 @@
 <?php
 /* Copyright (C) 2016-2020  Laurent Destailleur		<eldy@users.sourceforge.net>
  * Copyright (C) 2016-2019  Alexandre Spangaro		<aspangaro@open-dsi.fr>
- * Copyright (C) 2019       Frédéric France			<frederic.france@netlogic.fr>
+ * Copyright (C) 2019-2021  Frédéric France			<frederic.france@netlogic.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,13 +31,27 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
 // Load translation files required by the page
 $langs->loadLangs(array("compta", "bills", "other", "accountancy", "loans", "banks", "admin", "dict"));
 
+// Initialize technical object to manage hooks. Note that conf->hooks_modules contains array of hooks
+$hookmanager->initHooks(array('accountancyindex'));
+
 // Security check
 if ($user->socid > 0) {
 	accessforbidden();
 }
-
-// Initialize technical object to manage hooks. Note that conf->hooks_modules contains array of hooks
-$hookmanager->initHooks(array('accountancyindex'));
+/*
+if (empty($conf->accounting->enabled)) {
+	accessforbidden();
+}
+if (empty($user->rights->accounting->mouvements->lire)) {
+	accessforbidden();
+}
+*/
+if (empty($conf->comptabilite->enabled) && empty($conf->accounting->enabled) && empty($conf->asset->enabled) && empty($conf->intracommreport->enabled)) {
+	accessforbidden();
+}
+if (empty($user->rights->compta->resultat->lire) && empty($user->rights->accounting->comptarapport->lire) && empty($user->rights->accounting->mouvements->lire) && empty($user->rights->asset->read) && empty($user->rights->intracommreport->read)) {
+	accessforbidden();
+}
 
 
 /*
@@ -47,7 +61,7 @@ $hookmanager->initHooks(array('accountancyindex'));
 if (GETPOST('addbox')) {
 	// Add box (when submit is done from a form when ajax disabled)
 	require_once DOL_DOCUMENT_ROOT.'/core/class/infobox.class.php';
-	$zone = GETPOST('areacode', 'aZ09');
+	$zone = GETPOST('areacode', 'int');
 	$userid = GETPOST('userid', 'int');
 	$boxorder = GETPOST('boxorder', 'aZ09');
 	$boxorder .= GETPOST('boxcombo', 'aZ09');
@@ -67,7 +81,12 @@ $help_url = '';
 
 llxHeader('', $langs->trans("AccountancyArea"), $help_url);
 
-if ($conf->accounting->enabled) {
+if (!empty($conf->global->INVOICE_USE_SITUATION) && $conf->global->INVOICE_USE_SITUATION == 1) {
+	print load_fiche_titre($langs->trans("AccountancyArea"), '', 'accountancy');
+
+	print '<span class="opacitymedium">'.$langs->trans("SorryThisModuleIsNotCompatibleWithTheExperimentalFeatureOfSituationInvoices")."</span>\n";
+	print "<br>";
+} elseif ($conf->accounting->enabled) {
 	$step = 0;
 
 	$resultboxes = FormOther::getBoxesArea($user, "27"); // Load $resultboxes (selectboxlist + boxactivated + boxlista + boxlistb)
@@ -81,7 +100,7 @@ if ($conf->accounting->enabled) {
 		$showtutorial .= ' '.$langs->trans("ShowTutorial");
 		$showtutorial .= '</a></div>';
 
-		$showtutorial .= '<script type="text/javascript" language="javascript">
+		$showtutorial .= '<script type="text/javascript">
 	    jQuery(document).ready(function() {
 	        jQuery("#show_hide").click(function () {
 	            jQuery( "#idfaq" ).toggle({
@@ -152,7 +171,7 @@ if ($conf->accounting->enabled) {
 		print $s;
 		print "<br>\n";
 	}
-	if (!empty($conf->expensereport->enabled)) {  // TODO Move this in the default account page because this is only one accounting account per purpose, not several.
+	if (!empty($conf->expensereport->enabled)) {
 		$step++;
 		$s = img_picto('', 'puce').' '.$langs->trans("AccountancyAreaDescExpenseReport", $step, '{s}');
 		$s = str_replace('{s}', '<a href="'.DOL_URL_ROOT.'/admin/dict.php?id=17&from=accountancy"><strong>'.$langs->transnoentitiesnoconv("Setup").' - '.$langs->transnoentitiesnoconv("MenuExpenseReportAccounts").'</strong></a>', $s);
@@ -220,7 +239,7 @@ if ($conf->accounting->enabled) {
 	/*
 	 * Show boxes
 	 */
-	$boxlist .= '<div class="twocolumns">';
+	$boxlist = '<div class="twocolumns">';
 
 	$boxlist .= '<div class="firstcolumn fichehalfleft boxhalfleft" id="boxhalfleft">';
 
@@ -244,7 +263,8 @@ if ($conf->accounting->enabled) {
 } else {
 	print load_fiche_titre($langs->trans("AccountancyArea"), '', 'accountancy');
 
-	print '<span class="opacitymedium">'.$langs->trans("Module10Desc")."</span><br>\n";
+	print '<span class="opacitymedium">'.$langs->trans("Module10Desc")."</span>\n";
+	print "<br>";
 }
 
 // End of page

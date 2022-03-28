@@ -36,6 +36,7 @@ $ref = GETPOST('ref', 'alpha');
 $action = GETPOST('action', 'aZ09');
 $amounts = array();
 $accountid = GETPOST('accountid', 'int');
+$cancel = GETPOST('cancel');
 
 // Security check
 $socid = 0;
@@ -51,7 +52,7 @@ if ($user->socid > 0) {
 if ($action == 'add_payment') {
 	$error = 0;
 
-	if ($_POST["cancel"]) {
+	if ($cancel) {
 		$loc = DOL_URL_ROOT.'/expensereport/card.php?id='.$id;
 		header("Location: ".$loc);
 		exit;
@@ -64,9 +65,9 @@ if ($action == 'add_payment') {
 		setEventMessages($expensereport->error, $expensereport->errors, 'errors');
 	}
 
-	$datepaid = dol_mktime(12, 0, 0, $_POST["remonth"], $_POST["reday"], $_POST["reyear"]);
+	$datepaid = dol_mktime(12, 0, 0, GETPOST("remonth", 'int'), GETPOST("reday", 'int'), GETPOST("reyear", 'int'));
 
-	if (!($_POST["fk_typepayment"] > 0)) {
+	if (!(GETPOST("fk_typepayment", 'int') > 0)) {
 		setEventMessages($langs->trans("ErrorFieldRequired", $langs->transnoentities("PaymentMode")), null, 'errors');
 		$error++;
 	}
@@ -86,8 +87,8 @@ if ($action == 'add_payment') {
 		// Read possible payments
 		foreach ($_POST as $key => $value) {
 			if (substr($key, 0, 7) == 'amount_') {
-				$amounts[$expensereport->fk_user_author] = price2num($_POST[$key]);
-				$total += price2num($_POST[$key]);
+				$amounts[$expensereport->fk_user_author] = price2num(GETPOST($key));
+				$total += price2num(GETPOST($key));
 			}
 		}
 
@@ -169,7 +170,7 @@ if ($action == 'create' || empty($action)) {
 
 	// autofill remainder amount
 	if (!empty($conf->use_javascript_ajax)) {
-		print "\n".'<script type="text/javascript" language="javascript">';
+		print "\n".'<script type="text/javascript">';
 		//Add js for AutoFill
 		print ' $(document).ready(function () {';
 		print ' 	$(".AutoFillAmount").on(\'click touchstart\', function(){
@@ -205,7 +206,7 @@ if ($action == 'create' || empty($action)) {
 
 	$sql = "SELECT sum(p.amount) as total";
 	$sql .= " FROM ".MAIN_DB_PREFIX."payment_expensereport as p, ".MAIN_DB_PREFIX."expensereport as e";
-	$sql .= " WHERE p.fk_expensereport = e.rowid AND p.fk_expensereport = ".$id;
+	$sql .= " WHERE p.fk_expensereport = e.rowid AND p.fk_expensereport = ".((int) $id);
 	$sql .= ' AND e.entity IN ('.getEntity('expensereport').')';
 	$resql = $db->query($sql);
 	if ($resql) {
@@ -323,11 +324,7 @@ if ($action == 'create' || empty($action)) {
 
 	print "</table>";
 
-	print '<br><div class="center">';
-	print '<input type="submit" class="button button-save" name="save" value="'.$langs->trans("Save").'">';
-	print '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
-	print '<input type="submit" class="button button-cancel" name="cancel" value="'.$langs->trans("Cancel").'">';
-	print '</div>';
+	print $form->buttonsSaveCancel();
 
 	print "</form>\n";
 }

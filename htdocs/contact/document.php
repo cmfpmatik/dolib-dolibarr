@@ -1,7 +1,7 @@
 <?php
-/* Copyright (C) 2014	Alexandre Spangaro	<aspangaro@open-dsi.fr>
- * Copyright (C) 2015	Frederic France		<frederic.france@free.fr>
- * Copyright (C) 2017	Regis Houssin		<regis.houssin@inodbox.com>
+/* Copyright (C) 2014	    Alexandre Spangaro	<aspangaro@open-dsi.fr>
+ * Copyright (C) 2015-2021  Frederic France		<frederic.france@free.fr>
+ * Copyright (C) 2017	    Regis Houssin		<regis.houssin@inodbox.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,16 +49,10 @@ if (!empty($canvas)) {
 	$objcanvas->getCanvas('contact', 'contactcard', $canvas);
 }
 
-// Security check
-if ($user->socid) {
-	$socid = $user->socid;
-}
-$result = restrictedArea($user, 'contact', $id, 'socpeople&societe', '', '', 'rowid', 0); // If we create a contact with no company (shared contacts), no check on write permission
-
 // Get parameters
 $limit = GETPOST('limit', 'int') ? GETPOST('limit', 'int') : $conf->liste_limit;
-$sortfield = GETPOST("sortfield", 'alpha');
-$sortorder = GETPOST("sortorder", 'alpha');
+$sortfield = GETPOST('sortfield', 'aZ09comma');
+$sortorder = GETPOST('sortorder', 'aZ09comma');
 $page = GETPOSTISSET('pageplusone') ? (GETPOST('pageplusone') - 1) : GETPOST("page", 'int');
 if (empty($page) || $page == -1) {
 	$page = 0;
@@ -88,6 +82,17 @@ if ($id > 0) {
 $upload_dir = $conf->societe->multidir_output[$object->entity].'/contact/'.dol_sanitizeFileName($object->ref);
 $modulepart = 'contact';
 
+// Initialize technical object to manage hooks of page. Note that conf->hooks_modules contains array of hook context
+$hookmanager->initHooks(array('contactdocument'));
+
+// Security check
+if ($user->socid) {
+	$socid = $user->socid;
+}
+$result = restrictedArea($user, 'contact', $id, 'socpeople&societe', '', '', 'rowid', 0); // If we create a contact with no company (shared contacts), no check on write permission
+
+$permissiontoadd = $user->rights->societe->contact->creer;	// Used by the include of actions_dellink.inc.php
+
 
 /*
  * Actions
@@ -107,7 +112,7 @@ if (!empty($conf->global->MAIN_HTML_TITLE) && preg_match('/contactnameonly/', $c
 	$title = $object->lastname;
 }
 $help_url = 'EN:Module_Third_Parties|FR:Module_Tiers|ES:Empresas';
-llxHeader('', $title, $helpurl);
+llxHeader('', $title, $help_url);
 
 if ($object->id) {
 	$head = contact_prepare_head($object);
@@ -125,7 +130,11 @@ if ($object->id) {
 
 	$linkback = '<a href="'.DOL_URL_ROOT.'/contact/list.php?restore_lastsearch_values=1">'.$langs->trans("BackToList").'</a>';
 
-	$morehtmlref = '<div class="refidno">';
+	$morehtmlref = '<a href="'.DOL_URL_ROOT.'/contact/vcard.php?id='.$object->id.'" class="refid">';
+	$morehtmlref .= img_picto($langs->trans("Download").' '.$langs->trans("VCard"), 'vcard.png', 'class="valignmiddle marginleftonly paddingrightonly"');
+	$morehtmlref .= '</a>';
+
+	$morehtmlref .= '<div class="refidno">';
 	if (empty($conf->global->SOCIETE_DISABLE_CONTACTS)) {
 		$objsoc = new Societe($db);
 		$objsoc->fetch($object->socid);
@@ -180,7 +189,7 @@ if ($object->id) {
 	print dol_get_fiche_end();
 
 	$modulepart = 'contact';
-	$permission = $user->rights->societe->contact->creer;
+	$permissiontoadd = $user->rights->societe->contact->creer;
 	$permtoedit = $user->rights->societe->contact->creer;
 	$param = '&id='.$object->id;
 	include DOL_DOCUMENT_ROOT.'/core/tpl/document_actions_post_headers.tpl.php';

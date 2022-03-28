@@ -37,11 +37,13 @@ create table llx_propal
   datep					date,							-- date de la propal
   fin_validite			datetime,						-- date de fin de validite
   date_valid			datetime,						-- date de validation
+  date_signature		datetime,						-- date signature
   date_cloture			datetime,						-- date de cloture
   fk_user_author		integer,						-- user making creation
   fk_user_modif         integer,						-- user making last change
   fk_user_valid			integer,						-- user validating
-  fk_user_cloture		integer,						-- user closing (signed or not)
+  fk_user_signature		integer,						-- user signing (signed or not)
+  fk_user_cloture		integer,						-- user closing
   fk_statut				smallint DEFAULT 0 NOT NULL,	-- 0=draft, 1=validated, 2=accepted, 3=refused, 4=billed/closed
   price					real         DEFAULT 0,			-- (obsolete)
   remise_percent		real         DEFAULT 0,			-- remise globale relative en pourcent (obsolete)
@@ -58,6 +60,9 @@ create table llx_propal
   fk_cond_reglement		integer,						-- condition de reglement (30 jours, fin de mois ...)
   fk_mode_reglement		integer,						-- mode de reglement (Virement, Prelevement)
  
+  online_sign_ip		varchar(48),
+  online_sign_name		varchar(64),
+  
   note_private			text,
   note_public			text,
   
@@ -76,7 +81,7 @@ create table llx_propal
   fk_delivery_address	integer,							-- delivery address (deprecated)
   
   fk_multicurrency			integer,
-  multicurrency_code		varchar(255),
+  multicurrency_code		varchar(3),
   multicurrency_tx			double(24,8) DEFAULT 1,
   multicurrency_total_ht	double(24,8) DEFAULT 0,
   multicurrency_total_tva	double(24,8) DEFAULT 0,

@@ -42,7 +42,7 @@ foreach ($tmptype2label as $key => $val) {
 
 $action = GETPOST('action', 'aZ09');
 $attrname = GETPOST('attrname', 'alpha');
-$elementtype = 'payment_salary'; //Must be the $table_element of the class that manage extrafield
+$elementtype = 'salary'; //Must be the $table_element of the class that manage extrafield
 
 if (!$user->admin) {
 	accessforbidden();
@@ -87,13 +87,7 @@ if ($action != 'create' && $action != 'edit') {
 	print "</div>";
 }
 
-
-/* ************************************************************************** */
-/*                                                                            */
-/* Creation of an optional field											  */
-/*                                                                            */
-/* ************************************************************************** */
-
+// Creation of an optional field
 if ($action == 'create') {
 	print '<div name="topofform"></div><br>';
 	print load_fiche_titre($langs->trans('NewAttribute'));
@@ -101,11 +95,7 @@ if ($action == 'create') {
 	require DOL_DOCUMENT_ROOT.'/core/tpl/admin_extrafields_add.tpl.php';
 }
 
-/* ************************************************************************** */
-/*                                                                            */
-/* Edition of an optional field                                               */
-/*                                                                            */
-/* ************************************************************************** */
+// Edition of an optional field
 if ($action == 'edit' && !empty($attrname)) {
 	print '<div name="topofform"></div><br>';
 	print load_fiche_titre($langs->trans("FieldEdition", $attrname));
