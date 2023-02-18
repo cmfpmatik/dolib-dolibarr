@@ -8,6 +8,8 @@ test/report/
 nbproject
 default.properties
 .settings/
+.deploy-now/
+.github/
 .buildpath
 .gitmodules
 /.project
