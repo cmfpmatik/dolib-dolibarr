@@ -1490,9 +1490,9 @@ if ($object->id > 0) {
 						print '<td class="right"><b>!!!</b></td>';
 					}
 				}
-				if (!empty($conf->global->MAIN_SHOW_PRICE_WITH_TAX_IN_SUMMARIES)) {
+				if (getDolGlobalString('MAIN_SHOW_PRICE_WITH_TAX_IN_SUMMARIES')) {
 					print '<td class="right" style="min-width: 60px">';
-					print price($objp->total_ht) . ' HT | (' . price($objp->total_ttc) . ' TTC)';
+					print price($objp->total_ht) . ' HT (' . price($objp->total_ttc) . ' TTC)';
 					print '</td>';
 				} else {
 					print '<td class="right" style="min-width: 60px">';
@@ -1550,7 +1550,7 @@ if ($object->id > 0) {
 				print '<tr class="liste_titre">';
 				$colspan = 6;
 				if (getDolGlobalString('MAIN_SHOW_PRICE_WITH_TAX_IN_SUMMARIES')) {
-					$colspan++;
+					//$colspan++;
 				}
 				if (getDolGlobalString('MAIN_SHOW_REF_CUSTOMER_INVOICES')) {
 					$colspan++;
@@ -1638,7 +1638,7 @@ if ($object->id > 0) {
 					print '<td><b>!!!</b></td>';
 				}
 
-				if (!empty($conf->global->MAIN_SHOW_PRICE_WITH_TAX_IN_SUMMARIES)) {
+				if (getDolGlobalString('MAIN_SHOW_PRICE_WITH_TAX_IN_SUMMARIES')) {
 					print '<td class="right" style="min-width: 60px">';
 					print price($objp->total_ht) . ' HT | (' . price($objp->total_ttc) . ' TTC)';
 					print '</td>';
